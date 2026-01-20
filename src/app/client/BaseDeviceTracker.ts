@@ -109,9 +109,16 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
         const tbody = this.getOrBuildTableBody(devices);
 
         const block = this.getOrCreateTrackerBlock(tbody, this.trackerName);
-        data.forEach((item) => {
-            this.buildDeviceRow(block, item);
-        });
+        if (data.length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'no-devices-message';
+            emptyMessage.textContent = 'No devices detected';
+            block.appendChild(emptyMessage);
+        } else {
+            data.forEach((item) => {
+                this.buildDeviceRow(block, item);
+            });
+        }
     }
 
     private setNameValue(parent: Element | null, name: string): void {

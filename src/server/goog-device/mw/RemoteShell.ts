@@ -57,10 +57,9 @@ export class RemoteShell extends Mw {
             encoding: null,
         });
         const send = USE_BINARY ? this.bufferUtf8(5) : this.buffer(5);
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore Documentation is incorrect for `encoding: null`
-        term.on('data', send);
-        term.on('exit', (code: number) => {
+        // node-pty 1.x uses onData/onExit instead of .on('data')/.on('exit')
+        term.onData(send as (data: string) => void);
+        term.onExit(({ exitCode: code }) => {
             if (code === 0) {
                 this.closeCode = 1000;
             } else {

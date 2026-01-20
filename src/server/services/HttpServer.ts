@@ -8,6 +8,8 @@ import { Config } from '../Config';
 import { TypedEmitter } from '../../common/TypedEmitter';
 import * as process from 'process';
 import { EnvName } from '../EnvName';
+import { WorkflowDatabase } from './WorkflowDatabase';
+import { WorkflowApi } from '../mw/WorkflowApi';
 
 const DEFAULT_STATIC_DIR = path.join(__dirname, './public');
 
@@ -76,6 +78,18 @@ export class HttpServer extends TypedEmitter<HttpServerEvents> implements Servic
 
     public async start(): Promise<void> {
         this.mainApp = express();
+
+        // Add JSON body parser for API routes
+        this.mainApp.use(express.json());
+
+        // Initialize WorkflowDatabase
+        const workflowDb = WorkflowDatabase.getInstance();
+        await workflowDb.start();
+
+        // Mount Workflow API
+        const workflowApi = new WorkflowApi();
+        this.mainApp.use('/api/workflows', workflowApi.getRouter());
+
         if (HttpServer.SERVE_STATIC && HttpServer.PUBLIC_DIR) {
             this.mainApp.use(PATHNAME, express.static(HttpServer.PUBLIC_DIR));
 

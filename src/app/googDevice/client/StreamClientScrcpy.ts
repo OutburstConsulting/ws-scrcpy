@@ -2,6 +2,7 @@ import { BaseClient } from '../../client/BaseClient';
 import { ParamsStreamScrcpy } from '../../../types/ParamsStreamScrcpy';
 import { GoogMoreBox } from '../toolbox/GoogMoreBox';
 import { GoogToolBox } from '../toolbox/GoogToolBox';
+import { GoogWorkflowPanel } from '../toolbox/GoogWorkflowPanel';
 import VideoSettings from '../../VideoSettings';
 import Size from '../../Size';
 import { ControlMessage } from '../../controlMessage/ControlMessage';
@@ -56,6 +57,7 @@ export class StreamClientScrcpy
     private requestedVideoSettings?: VideoSettings;
     private touchHandler?: FeaturedInteractionHandler;
     private moreBox?: GoogMoreBox;
+    private workflowPanel?: GoogWorkflowPanel;
     private player?: BasePlayer;
     private filePushHandler?: FilePushHandler;
     private fitToScreen?: boolean;
@@ -291,6 +293,14 @@ export class StreamClientScrcpy
             videoSettings = player.getVideoSettings();
         }
 
+        // Create the centering wrapper
+        const streamWrapper = document.createElement('div');
+        streamWrapper.className = 'stream-wrapper';
+
+        // Create the main container with rounded edges
+        const streamContainer = document.createElement('div');
+        streamContainer.className = 'stream-container';
+
         const deviceView = document.createElement('div');
         deviceView.className = 'device-view';
         const stop = (ev?: string | Event) => {
@@ -298,13 +308,9 @@ export class StreamClientScrcpy
                 console.error(TAG, ev);
             }
             let parent;
-            parent = deviceView.parentElement;
+            parent = streamWrapper.parentElement;
             if (parent) {
-                parent.removeChild(deviceView);
-            }
-            parent = moreBox.parentElement;
-            if (parent) {
-                parent.removeChild(moreBox);
+                parent.removeChild(streamWrapper);
             }
             this.streamReceiver.stop();
             if (this.player) {
@@ -315,17 +321,43 @@ export class StreamClientScrcpy
         const googMoreBox = (this.moreBox = new GoogMoreBox(udid, player, this));
         const moreBox = googMoreBox.getHolderElement();
         googMoreBox.setOnStop(stop);
-        const googToolBox = GoogToolBox.createToolBox(udid, player, this, moreBox);
+
+        // Create workflow panel
+        const googWorkflowPanel = (this.workflowPanel = new GoogWorkflowPanel(udid, player, this));
+        const workflowBox = googWorkflowPanel.getHolderElement();
+        workflowBox.style.display = 'none'; // Hidden by default
+
+        // Create toolbox with callbacks for positioning panels
+        const googToolBox = GoogToolBox.createToolBox(udid, player, this, moreBox, workflowBox, {
+            onMoreBoxToggle: (visible, triggerButton) => {
+                if (visible) {
+                    googMoreBox.positionNear(triggerButton);
+                }
+            },
+            onWorkflowBoxToggle: (visible, triggerButton) => {
+                if (visible) {
+                    googWorkflowPanel.positionNear(triggerButton);
+                }
+            },
+        });
         this.controlButtons = googToolBox.getHolderElement();
-        deviceView.appendChild(this.controlButtons);
+
+        // Build the structure: video on left, toolbox on right
         const video = document.createElement('div');
         video.className = 'video';
         deviceView.appendChild(video);
-        deviceView.appendChild(moreBox);
+        deviceView.appendChild(this.controlButtons);
+
+        streamContainer.appendChild(deviceView);
+
         player.setParent(video);
         player.pause();
 
-        document.body.appendChild(deviceView);
+        streamWrapper.appendChild(streamContainer);
+        // Add moreBox and workflowBox to the wrapper so they can float freely
+        streamWrapper.appendChild(moreBox);
+        streamWrapper.appendChild(workflowBox);
+        document.body.appendChild(streamWrapper);
         if (fitToScreen) {
             const newBounds = this.getMaxSize();
             if (newBounds) {
@@ -348,6 +380,10 @@ export class StreamClientScrcpy
     }
 
     public sendMessage(message: ControlMessage): void {
+        // Record the message if recording is active
+        if (this.workflowPanel) {
+            this.workflowPanel.getRecorder().recordMessage(message);
+        }
         this.streamReceiver.sendEvent(message);
     }
 

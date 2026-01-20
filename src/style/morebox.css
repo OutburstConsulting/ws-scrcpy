@@ -6,9 +6,25 @@
 .more-box {
     display: none;
     position: absolute;
-    background-color: var(--controls-bg-color);
-    z-index: 2;
-    padding: 0 .714rem .714rem .714rem;
+    background-color: var(--panel-bg-color);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 10;
+    padding: .714rem;
+    top: 20px;
+    left: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    max-height: calc(100% - 40px);
+    overflow-y: auto;
+}
+
+.more-box-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    cursor: move;
+    user-select: none;
 }
 
 .text-with-shadow, .more-box label {

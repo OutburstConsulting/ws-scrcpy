@@ -4,9 +4,6 @@ import { SERVER_PORT } from '../../../common/Constants';
 import { ACTION } from '../../../common/Action';
 import GoogDeviceDescriptor from '../../../types/GoogDeviceDescriptor';
 import { ControlCenterCommand } from '../../../common/ControlCenterCommand';
-import { StreamClientScrcpy } from './StreamClientScrcpy';
-import SvgImage from '../../ui/SvgImage';
-import { html } from '../../ui/HtmlTag';
 import Util from '../../Util';
 import { Attribute } from '../../Attribute';
 import { DeviceState } from '../../../common/DeviceState';
@@ -15,20 +12,6 @@ import { ParamsDeviceTracker } from '../../../types/ParamsDeviceTracker';
 import { HostItem } from '../../../types/Configuration';
 import { ChannelCode } from '../../../common/ChannelCode';
 import { Tool } from '../../client/Tool';
-
-type Field = keyof GoogDeviceDescriptor | ((descriptor: GoogDeviceDescriptor) => string);
-type DescriptionColumn = { title: string; field: Field };
-
-const DESC_COLUMNS: DescriptionColumn[] = [
-    {
-        title: 'Net Interface',
-        field: 'interfaces',
-    },
-    {
-        title: 'Server PID',
-        field: 'pid',
-    },
-];
 
 export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never> {
     public static readonly ACTION = ACTION.GOOG_DEVICE_LIST;
@@ -166,184 +149,244 @@ export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never
         return optionElement;
     }
 
-    private static titleToClassName(title: string): string {
-        return title.toLowerCase().replace(/\s/g, '_');
-    }
-
     protected buildDeviceRow(tbody: Element, device: GoogDeviceDescriptor): void {
-        let selectedInterfaceUrl = '';
         let selectedInterfaceName = '';
-        const blockClass = 'desc-block';
         const fullName = `${this.id}_${Util.escapeUdid(device.udid)}`;
         const isActive = device.state === DeviceState.DEVICE;
-        let hasPid = false;
+        const hasPid = device.pid !== -1;
         const servicesId = `device_services_${fullName}`;
-        const row = html`<div class="device ${isActive ? 'active' : 'not-active'}">
-            <div class="device-header">
-                <div class="device-name">${device['ro.product.manufacturer']} ${device['ro.product.model']}</div>
-                <div class="device-serial">${device.udid}</div>
-                <div class="device-version">
-                    <div class="release-version">${device['ro.build.version.release']}</div>
-                    <div class="sdk-version">${device['ro.build.version.sdk']}</div>
-                </div>
-                <div class="device-state" title="State: ${device.state}"></div>
-            </div>
-            <div id="${servicesId}" class="services"></div>
-        </div>`.content;
-        const services = row.getElementById(servicesId);
-        if (!services) {
-            return;
+        const viewStreamBtnId = `view_stream_${fullName}`;
+        const interfaceSelectId = `interface_select_${fullName}`;
+
+        // Build Shoelace card for each device
+        const card = document.createElement('sl-card');
+        card.className = `device-card ${isActive ? 'active' : 'not-active'}`;
+
+        // Card header with device info
+        const header = document.createElement('div');
+        header.slot = 'header';
+        header.className = 'device-card-header';
+
+        const deviceInfo = document.createElement('div');
+        deviceInfo.className = 'device-card-info';
+
+        const deviceName = document.createElement('div');
+        deviceName.className = 'device-card-name';
+        deviceName.textContent = `${device['ro.product.manufacturer']} ${device['ro.product.model']}`;
+        deviceInfo.appendChild(deviceName);
+
+        const deviceMeta = document.createElement('div');
+        deviceMeta.className = 'device-card-meta';
+        deviceMeta.innerHTML = `
+            <span class="device-serial">${device.udid}</span>
+            <span class="device-version">Android ${device['ro.build.version.release']} (SDK ${device['ro.build.version.sdk']})</span>
+        `;
+        deviceInfo.appendChild(deviceMeta);
+
+        header.appendChild(deviceInfo);
+
+        // Status indicator
+        const statusBadge = document.createElement('sl-badge');
+        statusBadge.setAttribute('variant', isActive ? 'success' : 'neutral');
+        statusBadge.textContent = isActive ? (hasPid ? 'Ready' : 'Inactive') : 'Offline';
+        if (isActive && hasPid) {
+            statusBadge.setAttribute('pulse', '');
+        }
+        header.appendChild(statusBadge);
+
+        card.appendChild(header);
+
+        // Card body with actions
+        const body = document.createElement('div');
+        body.className = 'device-card-body';
+        body.id = servicesId;
+
+        // Hidden interface select (for internal use)
+        const proxyInterfaceUrl = DeviceTracker.createUrl(this.params, device.udid).toString();
+        const proxyInterfaceName = 'proxy';
+        const localStorageKey = DeviceTracker.getLocalStorageKey(fullName);
+        const lastSelected = localStorage && localStorage.getItem(localStorageKey);
+        const selectElement = document.createElement('select');
+        selectElement.id = interfaceSelectId;
+        selectElement.style.display = 'none';
+        selectElement.setAttribute(Attribute.UDID, device.udid);
+        selectElement.setAttribute(Attribute.FULL_NAME, fullName);
+        selectElement.setAttribute(
+            'name',
+            encodeURIComponent(`${DeviceTracker.AttributePrefixInterfaceSelectFor}${fullName}`),
+        );
+
+        /// #if SCRCPY_LISTENS_ON_ALL_INTERFACES
+        device.interfaces.forEach((value) => {
+            const params = {
+                ...this.params,
+                secure: false,
+                hostname: value.ipv4,
+                port: SERVER_PORT,
+            };
+            const url = DeviceTracker.createUrl(params).toString();
+            const optionElement = DeviceTracker.createInterfaceOption(value.name, url);
+            optionElement.innerText = `${value.name}: ${value.ipv4}`;
+            selectElement.appendChild(optionElement);
+            if (lastSelected) {
+                if (lastSelected === value.name || !selectedInterfaceName) {
+                    optionElement.selected = true;
+                    selectedInterfaceName = value.name;
+                }
+            } else if (device['wifi.interface'] === value.name) {
+                optionElement.selected = true;
+            }
+        });
+        /// #else
+        selectedInterfaceName = proxyInterfaceName;
+        /// #endif
+
+        if (isActive) {
+            const adbProxyOption = DeviceTracker.createInterfaceOption(proxyInterfaceName, proxyInterfaceUrl);
+            if (lastSelected === proxyInterfaceName || !selectedInterfaceName) {
+                adbProxyOption.selected = true;
+                selectedInterfaceName = proxyInterfaceName;
+            }
+            selectElement.appendChild(adbProxyOption);
+        }
+        selectElement.onchange = this.onInterfaceSelected;
+        body.appendChild(selectElement);
+
+        // View Stream button - only show for active devices with server running
+        if (isActive && hasPid) {
+            const viewStreamBtn = document.createElement('sl-button');
+            viewStreamBtn.id = viewStreamBtnId;
+            viewStreamBtn.setAttribute('variant', 'primary');
+            viewStreamBtn.setAttribute('size', 'medium');
+            viewStreamBtn.innerHTML = '<sl-icon name="play-circle" slot="prefix"></sl-icon>View Stream';
+            viewStreamBtn.setAttribute(Attribute.UDID, device.udid);
+            viewStreamBtn.setAttribute(Attribute.FULL_NAME, fullName);
+            viewStreamBtn.setAttribute(Attribute.SECURE, String(this.params.secure));
+            viewStreamBtn.setAttribute(Attribute.HOSTNAME, this.params.hostname || '');
+            viewStreamBtn.setAttribute(Attribute.PORT, String(this.params.port));
+            viewStreamBtn.setAttribute(Attribute.PATHNAME, this.params.pathname || '');
+            viewStreamBtn.setAttribute(Attribute.USE_PROXY, String(this.params.useProxy));
+            viewStreamBtn.onclick = this.onViewStreamClick;
+            body.appendChild(viewStreamBtn);
+        } else if (isActive && !hasPid) {
+            // Start server button
+            const startServerBtn = document.createElement('sl-button');
+            startServerBtn.setAttribute('variant', 'neutral');
+            startServerBtn.setAttribute('size', 'medium');
+            startServerBtn.innerHTML = '<sl-icon name="power" slot="prefix"></sl-icon>Start Server';
+            startServerBtn.setAttribute(Attribute.UDID, device.udid);
+            startServerBtn.setAttribute(Attribute.PID, String(device.pid));
+            startServerBtn.setAttribute(Attribute.COMMAND, ControlCenterCommand.START_SERVER);
+            startServerBtn.onclick = this.onActionButtonClick;
+            body.appendChild(startServerBtn);
+        } else {
+            // Offline message
+            const offlineMsg = document.createElement('div');
+            offlineMsg.className = 'device-offline-msg';
+            const timestamp = device['last.update.timestamp'];
+            if (timestamp) {
+                const date = new Date(timestamp);
+                offlineMsg.textContent = `Last seen: ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+            } else {
+                offlineMsg.textContent = 'Device is offline';
+            }
+            body.appendChild(offlineMsg);
         }
 
+        // Add tools (Shell, DevTools, File Listing)
+        const toolsContainer = document.createElement('div');
+        toolsContainer.className = 'device-tools';
+
         DeviceTracker.tools.forEach((tool) => {
-            const entry = tool.createEntryForDeviceList(device, blockClass, this.params);
+            const entry = tool.createEntryForDeviceList(device, 'tool-entry', this.params);
             if (entry) {
                 if (Array.isArray(entry)) {
                     entry.forEach((item) => {
-                        item && services.appendChild(item);
+                        item && toolsContainer.appendChild(item);
                     });
                 } else {
-                    services.appendChild(entry);
+                    toolsContainer.appendChild(entry);
                 }
             }
         });
 
-        const streamEntry = StreamClientScrcpy.createEntryForDeviceList(device, blockClass, fullName, this.params);
-        streamEntry && services.appendChild(streamEntry);
-
-        DESC_COLUMNS.forEach((item) => {
-            const { title } = item;
-            const fieldName = item.field;
-            let value: string;
-            if (typeof item.field === 'string') {
-                value = '' + device[item.field];
-            } else {
-                value = item.field(device);
-            }
-            const td = document.createElement('div');
-            td.classList.add(DeviceTracker.titleToClassName(title), blockClass);
-            services.appendChild(td);
-            if (fieldName === 'pid') {
-                hasPid = value !== '-1';
-                const actionButton = document.createElement('button');
-                actionButton.className = 'action-button kill-server-button';
-                actionButton.setAttribute(Attribute.UDID, device.udid);
-                actionButton.setAttribute(Attribute.PID, value);
-                let command: string;
-                if (isActive) {
-                    actionButton.classList.add('active');
-                    actionButton.onclick = this.onActionButtonClick;
-                    if (hasPid) {
-                        command = ControlCenterCommand.KILL_SERVER;
-                        actionButton.title = 'Kill server';
-                        actionButton.appendChild(SvgImage.create(SvgImage.Icon.CANCEL));
-                    } else {
-                        command = ControlCenterCommand.START_SERVER;
-                        actionButton.title = 'Start server';
-                        actionButton.appendChild(SvgImage.create(SvgImage.Icon.REFRESH));
-                    }
-                    actionButton.setAttribute(Attribute.COMMAND, command);
-                } else {
-                    const timestamp = device['last.update.timestamp'];
-                    if (timestamp) {
-                        const date = new Date(timestamp);
-                        actionButton.title = `Last update on ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
-                    } else {
-                        actionButton.title = `Not active`;
-                    }
-                    actionButton.appendChild(SvgImage.create(SvgImage.Icon.OFFLINE));
-                }
-                const span = document.createElement('span');
-                span.innerText = value;
-                actionButton.appendChild(span);
-                td.appendChild(actionButton);
-            } else if (fieldName === 'interfaces') {
-                const proxyInterfaceUrl = DeviceTracker.createUrl(this.params, device.udid).toString();
-                const proxyInterfaceName = 'proxy';
-                const localStorageKey = DeviceTracker.getLocalStorageKey(fullName);
-                const lastSelected = localStorage && localStorage.getItem(localStorageKey);
-                const selectElement = document.createElement('select');
-                selectElement.setAttribute(Attribute.UDID, device.udid);
-                selectElement.setAttribute(Attribute.FULL_NAME, fullName);
-                selectElement.setAttribute(
-                    'name',
-                    encodeURIComponent(`${DeviceTracker.AttributePrefixInterfaceSelectFor}${fullName}`),
-                );
-                /// #if SCRCPY_LISTENS_ON_ALL_INTERFACES
-                device.interfaces.forEach((value) => {
-                    const params = {
-                        ...this.params,
-                        secure: false,
-                        hostname: value.ipv4,
-                        port: SERVER_PORT,
-                    };
-                    const url = DeviceTracker.createUrl(params).toString();
-                    const optionElement = DeviceTracker.createInterfaceOption(value.name, url);
-                    optionElement.innerText = `${value.name}: ${value.ipv4}`;
-                    selectElement.appendChild(optionElement);
-                    if (lastSelected) {
-                        if (lastSelected === value.name || !selectedInterfaceName) {
-                            optionElement.selected = true;
-                            selectedInterfaceUrl = url;
-                            selectedInterfaceName = value.name;
-                        }
-                    } else if (device['wifi.interface'] === value.name) {
-                        optionElement.selected = true;
-                    }
-                });
-                /// #else
-                selectedInterfaceUrl = proxyInterfaceUrl;
-                selectedInterfaceName = proxyInterfaceName;
-                td.classList.add('hidden');
-                /// #endif
-                if (isActive) {
-                    const adbProxyOption = DeviceTracker.createInterfaceOption(proxyInterfaceName, proxyInterfaceUrl);
-                    if (lastSelected === proxyInterfaceName || !selectedInterfaceName) {
-                        adbProxyOption.selected = true;
-                        selectedInterfaceUrl = proxyInterfaceUrl;
-                        selectedInterfaceName = proxyInterfaceName;
-                    }
-                    selectElement.appendChild(adbProxyOption);
-                    const actionButton = document.createElement('button');
-                    actionButton.className = 'action-button update-interfaces-button active';
-                    actionButton.title = `Update information`;
-                    actionButton.appendChild(SvgImage.create(SvgImage.Icon.REFRESH));
-                    actionButton.setAttribute(Attribute.UDID, device.udid);
-                    actionButton.setAttribute(Attribute.COMMAND, ControlCenterCommand.UPDATE_INTERFACES);
-                    actionButton.onclick = this.onActionButtonClick;
-                    td.appendChild(actionButton);
-                }
-                selectElement.onchange = this.onInterfaceSelected;
-                td.appendChild(selectElement);
-            } else {
-                td.innerText = value;
-            }
-        });
-
-        if (DeviceTracker.CREATE_DIRECT_LINKS) {
-            const name = `${DeviceTracker.AttributePrefixPlayerFor}${fullName}`;
-            StreamClientScrcpy.getPlayers().forEach((playerClass) => {
-                const { playerCodeName, playerFullName } = playerClass;
-                const playerTd = document.createElement('div');
-                playerTd.classList.add(blockClass);
-                playerTd.setAttribute('name', encodeURIComponent(name));
-                playerTd.setAttribute(DeviceTracker.AttributePlayerFullName, encodeURIComponent(playerFullName));
-                playerTd.setAttribute(DeviceTracker.AttributePlayerCodeName, encodeURIComponent(playerCodeName));
-                services.appendChild(playerTd);
-            });
+        if (toolsContainer.children.length > 0) {
+            body.appendChild(toolsContainer);
         }
 
-        tbody.appendChild(row);
-        if (DeviceTracker.CREATE_DIRECT_LINKS && hasPid && selectedInterfaceUrl) {
-            this.updateLink({
-                url: selectedInterfaceUrl,
-                name: selectedInterfaceName,
-                fullName,
-                udid: device.udid,
-                store: false,
-            });
+        card.appendChild(body);
+
+        // Card footer with server controls (for active devices)
+        if (isActive && hasPid) {
+            const footer = document.createElement('div');
+            footer.slot = 'footer';
+            footer.className = 'device-card-footer';
+
+            const killServerBtn = document.createElement('sl-button');
+            killServerBtn.setAttribute('variant', 'text');
+            killServerBtn.setAttribute('size', 'small');
+            killServerBtn.innerHTML = '<sl-icon name="stop-circle" slot="prefix"></sl-icon>Stop Server';
+            killServerBtn.setAttribute(Attribute.UDID, device.udid);
+            killServerBtn.setAttribute(Attribute.PID, String(device.pid));
+            killServerBtn.setAttribute(Attribute.COMMAND, ControlCenterCommand.KILL_SERVER);
+            killServerBtn.onclick = this.onActionButtonClick;
+            footer.appendChild(killServerBtn);
+
+            card.appendChild(footer);
         }
+
+        tbody.appendChild(card);
     }
+
+    onViewStreamClick = (event: MouseEvent): void => {
+        const button = event.currentTarget as HTMLElement;
+        const udid = Util.parseStringEnv(button.getAttribute(Attribute.UDID) || '');
+        const fullName = button.getAttribute(Attribute.FULL_NAME) || '';
+        const secure = Util.parseBooleanEnv(button.getAttribute(Attribute.SECURE) || undefined) || false;
+        const hostname = Util.parseStringEnv(button.getAttribute(Attribute.HOSTNAME) || undefined) || '';
+        const port = Util.parseIntEnv(button.getAttribute(Attribute.PORT) || undefined);
+        const pathname = Util.parseStringEnv(button.getAttribute(Attribute.PATHNAME) || undefined) || '';
+        const useProxy = Util.parseBooleanEnv(button.getAttribute(Attribute.USE_PROXY) || undefined);
+
+        if (!udid || typeof port !== 'number') {
+            return;
+        }
+
+        // Get interface URL from hidden select
+        const selectElements = document.getElementsByName(
+            encodeURIComponent(`${DeviceTracker.AttributePrefixInterfaceSelectFor}${fullName}`),
+        );
+        if (!selectElements || !selectElements.length) {
+            return;
+        }
+        const select = selectElements[0] as HTMLSelectElement;
+        const optionElement = select.options[select.selectedIndex];
+        const ws = optionElement.getAttribute(Attribute.URL);
+
+        if (!ws) {
+            return;
+        }
+
+        // Use MSE player (H264 Converter) directly
+        const playerCodeName = 'mse';
+        const action = ACTION.STREAM_SCRCPY;
+
+        const link = DeviceTracker.buildLink(
+            {
+                action,
+                udid,
+                player: playerCodeName,
+                ws,
+            },
+            'View Stream',
+            { action: ACTION.GOOG_DEVICE_LIST, secure, hostname, port, pathname, useProxy, type: 'android' },
+        );
+
+        // Navigate to the stream
+        if (link instanceof HTMLAnchorElement) {
+            link.click();
+        }
+    };
 
     protected getChannelCode(): string {
         return ChannelCode.GTRC;

@@ -4,6 +4,7 @@ import path from 'path';
 import webpack from 'webpack';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import CopyWebpackPlugin from 'copy-webpack-plugin';
 import GeneratePackageJsonPlugin from '@dead50f7/generate-package-json-webpack-plugin';
 import { mergeWithDefaultConfig } from './build.config.utils';
 
@@ -105,6 +106,14 @@ const front: webpack.Configuration = {
         new MiniCssExtractPlugin(),
         new webpack.ProvidePlugin({
             Buffer: ['buffer', 'Buffer'],
+        }),
+        new CopyWebpackPlugin({
+            patterns: [
+                {
+                    from: 'node_modules/@shoelace-style/shoelace/dist/assets',
+                    to: 'shoelace/assets',
+                },
+            ],
         }),
     ],
     resolve: {

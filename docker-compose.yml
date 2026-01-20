@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  ws-scrcpy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: outburst/ws-scrcpy:latest
+    container_name: ws-scrcpy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # Required for ADB to work with USB devices
+    privileged: true
+    volumes:
+      # Mount ADB keys for device authentication
+      - ~/.android:/root/.android:ro
+    environment:
+      - NODE_ENV=production

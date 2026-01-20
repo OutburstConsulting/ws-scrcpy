@@ -7,6 +7,7 @@ import Size from '../../Size';
 import DeviceMessage from '../DeviceMessage';
 import VideoSettings from '../../VideoSettings';
 import { StreamClientScrcpy } from '../client/StreamClientScrcpy';
+import { DraggablePanel } from '../../ui/DraggablePanel';
 
 const TAG = '[GoogMoreBox]';
 
@@ -20,6 +21,7 @@ export class GoogMoreBox {
     private readonly iFrameIntervalInput?: HTMLInputElement;
     private readonly maxWidthInput?: HTMLInputElement;
     private readonly maxHeightInput?: HTMLInputElement;
+    private readonly draggable: DraggablePanel;
 
     constructor(udid: string, private player: BasePlayer, private client: StreamClientScrcpy) {
         const playerName = player.getName();
@@ -28,10 +30,22 @@ export class GoogMoreBox {
         const preferredSettings = player.getPreferredVideoSetting();
         const moreBox = document.createElement('div');
         moreBox.className = 'more-box';
-        const nameBox = document.createElement('p');
-        nameBox.innerText = `${udid} (${playerName})`;
-        nameBox.className = 'text-with-shadow';
-        moreBox.appendChild(nameBox);
+
+        // Create draggable header
+        const header = document.createElement('div');
+        header.className = 'more-box-header';
+
+        const dragIcon = document.createElement('sl-icon');
+        dragIcon.setAttribute('name', 'grip-horizontal');
+        dragIcon.style.marginRight = '8px';
+        header.appendChild(dragIcon);
+
+        const titleSpan = document.createElement('span');
+        titleSpan.innerText = `${udid} (${playerName})`;
+        titleSpan.className = 'text-with-shadow';
+        header.appendChild(titleSpan);
+
+        moreBox.appendChild(header);
         const input = (this.input = document.createElement('textarea'));
         input.classList.add('text-area');
         const sendButton = document.createElement('button');
@@ -238,6 +252,9 @@ export class GoogMoreBox {
         player.on('video-view-resize', this.onViewVideoResize);
         player.on('video-settings', this.onVideoSettings);
         this.holder = moreBox;
+
+        // Initialize draggable functionality
+        this.draggable = new DraggablePanel(moreBox, header);
     }
 
     private onViewVideoResize = (size: Size): void => {
@@ -313,5 +330,13 @@ export class GoogMoreBox {
 
     public setOnStop(listener: () => void): void {
         this.onStop = listener;
+    }
+
+    public positionNear(element: HTMLElement): void {
+        this.draggable.positionNear(element, 'left');
+    }
+
+    public destroy(): void {
+        this.draggable.destroy();
     }
 }

@@ -41,6 +41,11 @@ const BUTTONS = [
     },
 ];
 
+export interface ToolBoxPanelCallbacks {
+    onMoreBoxToggle?: (visible: boolean, triggerButton: HTMLElement) => void;
+    onWorkflowBoxToggle?: (visible: boolean, triggerButton: HTMLElement) => void;
+}
+
 export class GoogToolBox extends ToolBox {
     protected constructor(list: ToolBoxElement<any>[]) {
         super(list);
@@ -51,6 +56,8 @@ export class GoogToolBox extends ToolBox {
         player: BasePlayer,
         client: StreamClientScrcpy,
         moreBox?: HTMLElement,
+        workflowBox?: HTMLElement,
+        callbacks?: ToolBoxPanelCallbacks,
     ): GoogToolBox {
         const playerName = player.getName();
         const list = BUTTONS.slice();
@@ -99,9 +106,30 @@ export class GoogToolBox extends ToolBox {
             const more = new ToolBoxCheckbox('More', SvgImage.Icon.MORE, id);
             more.addEventListener('click', (_, el) => {
                 const element = el.getElement();
-                moreBox.style.display = element.checked ? 'block' : 'none';
+                const visible = element.checked;
+                moreBox.style.display = visible ? 'block' : 'none';
+                if (callbacks?.onMoreBoxToggle) {
+                    const triggerButton = more.getElement().parentElement || more.getElement();
+                    callbacks.onMoreBoxToggle(visible, triggerButton);
+                }
             });
             elements.unshift(more);
+        }
+
+        if (workflowBox) {
+            const displayId = player.getVideoSettings().displayId;
+            const workflowId = `show_workflow_${udid}_${playerName}_${displayId}`;
+            const workflowToggle = new ToolBoxCheckbox('Workflows', SvgImage.Icon.SETTINGS, workflowId);
+            workflowToggle.addEventListener('click', (_, el) => {
+                const element = el.getElement();
+                const visible = element.checked;
+                workflowBox.style.display = visible ? 'block' : 'none';
+                if (callbacks?.onWorkflowBoxToggle) {
+                    const triggerButton = workflowToggle.getElement().parentElement || workflowToggle.getElement();
+                    callbacks.onWorkflowBoxToggle(visible, triggerButton);
+                }
+            });
+            elements.unshift(workflowToggle);
         }
         return new GoogToolBox(elements);
     }
