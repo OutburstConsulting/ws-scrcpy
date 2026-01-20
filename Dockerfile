@@ -1,4 +1,4 @@
-FROM node:18-bullseye
+FROM node:24-bullseye
 
 LABEL maintainer="Outburst"
 LABEL description="Custom ws-scrcpy with workflow recording and enhanced UI"

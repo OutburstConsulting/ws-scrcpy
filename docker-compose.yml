@@ -15,5 +15,7 @@ services:
     volumes:
       # Mount ADB keys for device authentication
       - ~/.android:/root/.android:ro
+      # Persist SQLite databases (workflows, connections)
+      - ./data:/ws-scrcpy/data
     environment:
       - NODE_ENV=production

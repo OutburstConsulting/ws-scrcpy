@@ -195,6 +195,7 @@ export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never
         // Build Shoelace card for each device
         const card = document.createElement('sl-card');
         card.className = `device-card ${isActive ? 'active' : 'not-active'}`;
+        card.setAttribute('data-tracker-id', this.elementId);
 
         // Card header with device info
         const header = document.createElement('div');

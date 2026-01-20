@@ -10,6 +10,8 @@ import * as process from 'process';
 import { EnvName } from '../EnvName';
 import { WorkflowDatabase } from './WorkflowDatabase';
 import { WorkflowApi } from '../mw/WorkflowApi';
+import { ConnectionDatabase } from './ConnectionDatabase';
+import { ConnectionApi } from '../mw/ConnectionApi';
 
 const DEFAULT_STATIC_DIR = path.join(__dirname, './public');
 
@@ -86,9 +88,17 @@ export class HttpServer extends TypedEmitter<HttpServerEvents> implements Servic
         const workflowDb = WorkflowDatabase.getInstance();
         await workflowDb.start();
 
+        // Initialize ConnectionDatabase
+        const connectionDb = ConnectionDatabase.getInstance();
+        await connectionDb.start();
+
         // Mount Workflow API
         const workflowApi = new WorkflowApi();
         this.mainApp.use('/api/workflows', workflowApi.getRouter());
+
+        // Mount Connection API
+        const connectionApi = new ConnectionApi();
+        this.mainApp.use('/api/connections', connectionApi.getRouter());
 
         if (HttpServer.SERVE_STATIC && HttpServer.PUBLIC_DIR) {
             this.mainApp.use(PATHNAME, express.static(HttpServer.PUBLIC_DIR));

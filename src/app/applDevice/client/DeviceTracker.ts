@@ -42,7 +42,7 @@ export class DeviceTracker extends BaseDeviceTracker<ApplDeviceDescriptor, never
         const fullName = `${this.id}_${Util.escapeUdid(device.udid)}`;
         const isActive = device.state === DeviceState.CONNECTED;
         const servicesId = `device_services_${fullName}`;
-        const row = html`<div class="device ${isActive ? 'active' : 'not-active'}">
+        const row = html`<div class="device ${isActive ? 'active' : 'not-active'}" data-tracker-id="${this.elementId}">
             <div class="device-header">
                 <div class="device-name">"${device.name}"</div>
                 <div class="device-model">${device.model}</div>

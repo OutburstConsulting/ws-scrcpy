@@ -79,6 +79,8 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
     protected elementId: string;
     protected trackerName = '';
     protected id = '';
+    protected sectionTitle = 'Discovered Devices';
+    protected isLocal = false;
     private created = false;
     private messageId = 0;
 
@@ -86,6 +88,10 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
         super(params);
         this.elementId = `tracker_instance${++BaseDeviceTracker.instanceId}`;
         this.trackerName = `Unavailable. Host: ${params.hostname}, type: ${params.type}`;
+        // Determine if this is local or remote
+        this.isLocal = params.hostname === location.hostname;
+        // Section title shows just the hostname
+        this.sectionTitle = params.hostname || 'Unknown';
         this.setBodyClass('list');
         this.setTitle();
     }
@@ -108,16 +114,42 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
         const devices = this.getOrCreateTableHolder();
         const tbody = this.getOrBuildTableBody(devices);
 
-        const block = this.getOrCreateTrackerBlock(tbody, this.trackerName);
+        // For local devices, put cards directly in device-list
+        // For remote devices, use tracker-section wrapper
+        let block: Element;
+        if (this.isLocal) {
+            // Update the wrapper header with the tracker name
+            this.updateWrapperHeader(this.trackerName);
+            block = tbody;
+            // Clear previous content for this tracker
+            const existingCards = tbody.querySelectorAll(`[data-tracker-id="${this.elementId}"]`);
+            existingCards.forEach((card) => card.remove());
+        } else {
+            block = this.getOrCreateTrackerBlock(tbody, this.trackerName);
+        }
+
         if (data.length === 0) {
-            const emptyMessage = document.createElement('div');
-            emptyMessage.className = 'empty-message';
-            emptyMessage.textContent = 'No devices found';
-            block.appendChild(emptyMessage);
+            if (!this.isLocal) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.className = 'empty-message';
+                emptyMessage.textContent = 'No devices found';
+                block.appendChild(emptyMessage);
+            }
         } else {
             data.forEach((item) => {
                 this.buildDeviceRow(block, item);
             });
+        }
+    }
+
+    private updateWrapperHeader(trackerName: string): void {
+        const wrapperId = 'devices-wrapper-local';
+        const wrapper = document.getElementById(wrapperId);
+        if (!wrapper) return;
+
+        const header = wrapper.querySelector('.devices-wrapper-header');
+        if (header) {
+            header.textContent = `Local Devices ${trackerName}`;
         }
     }
 
@@ -134,7 +166,7 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
 
             const titleEl = document.createElement('span');
             titleEl.className = 'section-title';
-            titleEl.textContent = 'Discovered Devices';
+            titleEl.textContent = this.sectionTitle;
             headerEl.appendChild(titleEl);
         }
 
@@ -244,13 +276,35 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
 
     protected getOrBuildTableBody(parent: HTMLElement): Element {
         const className = 'device-list';
+        const wrapperType = this.isLocal ? 'local' : 'remote';
+        const wrapperId = `devices-wrapper-${wrapperType}`;
+        // Use a single device-list ID for all remotes, separate for locals by type
+        const deviceListId = this.isLocal ? `${this.tableId}_local` : 'remote_device_list';
+
+        // Get or create the wrapper section for local/remote
+        let wrapper = document.getElementById(wrapperId);
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = wrapperId;
+            wrapper.className = `devices-wrapper devices-wrapper-${wrapperType}`;
+
+            // Add section header
+            const header = document.createElement('div');
+            header.className = 'devices-wrapper-header';
+            header.textContent = this.isLocal ? 'Local Devices' : 'Remote Devices';
+            wrapper.appendChild(header);
+
+            parent.appendChild(wrapper);
+        }
+
+        // Get or create the device-list inside the wrapper
         let tbody = document.querySelector(
-            `#${BaseDeviceTracker.HOLDER_ELEMENT_ID} #${this.tableId}.${className}`,
+            `#${wrapperId} #${deviceListId}.${className}`,
         ) as Element;
         if (!tbody) {
-            const fragment = html`<div id="${this.tableId}" class="${className}"></div>`.content;
-            parent.appendChild(fragment);
-            const last = parent.children.item(parent.children.length - 1);
+            const fragment = html`<div id="${deviceListId}" class="${className}"></div>`.content;
+            wrapper.appendChild(fragment);
+            const last = wrapper.children.item(wrapper.children.length - 1);
             if (last) {
                 tbody = last;
             }

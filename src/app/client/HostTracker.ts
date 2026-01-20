@@ -29,7 +29,7 @@ export interface HostTrackerEvents {
 
 export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
     private static instance?: HostTracker;
-    private static readonly CONNECTIONS_STORAGE_KEY = 'host_tracker::saved_connections';
+    private static readonly API_BASE = '/api/connections';
 
     public static start(): void {
         this.getInstance();
@@ -42,47 +42,51 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
         return this.instance;
     }
 
-    // Get saved custom connections from localStorage
-    private static getSavedConnections(): SavedConnection[] {
-        if (!window.localStorage) {
+    // Get saved custom connections from server
+    private static async getSavedConnections(): Promise<SavedConnection[]> {
+        try {
+            const response = await fetch(this.API_BASE);
+            const data = await response.json();
+            if (data.success) {
+                return data.connections;
+            }
+            return [];
+        } catch (error) {
+            console.error(TAG, 'Failed to get connections:', error);
             return [];
         }
-        const stored = window.localStorage.getItem(this.CONNECTIONS_STORAGE_KEY);
-        if (stored) {
-            try {
-                return JSON.parse(stored);
-            } catch {
-                return [];
-            }
-        }
-        return [];
     }
 
-    // Save a custom connection to localStorage
-    private static saveConnection(connection: SavedConnection): void {
-        if (!window.localStorage) {
-            return;
+    // Save a custom connection to server
+    private static async saveConnection(connection: SavedConnection): Promise<boolean> {
+        try {
+            const response = await fetch(this.API_BASE, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(connection),
+            });
+            const data = await response.json();
+            return data.success;
+        } catch (error) {
+            console.error(TAG, 'Failed to save connection:', error);
+            return false;
         }
-        const connections = this.getSavedConnections();
-        // Check if a connection with same hostname:port exists
-        const existingIdx = connections.findIndex(
-            (c) => c.hostname === connection.hostname && c.port === connection.port,
-        );
-        if (existingIdx >= 0) {
-            connections[existingIdx] = connection;
-        } else {
-            connections.push(connection);
-        }
-        window.localStorage.setItem(this.CONNECTIONS_STORAGE_KEY, JSON.stringify(connections));
     }
 
-    // Delete a saved connection
-    private static deleteConnection(connectionId: string): void {
-        if (!window.localStorage) {
-            return;
+    // Delete a saved connection from server
+    private static async deleteConnection(connectionId: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.API_BASE}/${connectionId}`, {
+                method: 'DELETE',
+            });
+            const data = await response.json();
+            return data.success;
+        } catch (error) {
+            console.error(TAG, 'Failed to delete connection:', error);
+            return false;
         }
-        const connections = this.getSavedConnections().filter((c) => c.id !== connectionId);
-        window.localStorage.setItem(this.CONNECTIONS_STORAGE_KEY, JSON.stringify(connections));
     }
 
     // Generate unique ID for connection
@@ -158,11 +162,20 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
         this.renderSavedConnections();
     }
 
-    private renderSavedConnections(): void {
+    private async renderSavedConnections(): Promise<void> {
         if (!this.customConnectionsContainer) return;
 
         this.customConnectionsContainer.innerHTML = '';
-        const connections = HostTracker.getSavedConnections();
+
+        // Show loading state
+        const loadingMsg = document.createElement('div');
+        loadingMsg.className = 'empty-message';
+        loadingMsg.textContent = 'Loading...';
+        this.customConnectionsContainer.appendChild(loadingMsg);
+
+        const connections = await HostTracker.getSavedConnections();
+
+        this.customConnectionsContainer.innerHTML = '';
 
         if (connections.length === 0) {
             const emptyMsg = document.createElement('div');
@@ -216,8 +229,8 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
         const deleteIcon = document.createElement('sl-icon-button');
         deleteIcon.setAttribute('name', 'trash');
         deleteIcon.setAttribute('label', 'Delete');
-        deleteIcon.addEventListener('click', () => {
-            HostTracker.deleteConnection(conn.id);
+        deleteIcon.addEventListener('click', async () => {
+            await HostTracker.deleteConnection(conn.id);
             this.renderSavedConnections();
         });
         deleteBtn.appendChild(deleteIcon);
@@ -313,7 +326,7 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
         saveBtn.setAttribute('slot', 'footer');
         saveBtn.setAttribute('variant', 'primary');
         saveBtn.textContent = 'Save';
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
             const nameValue = (nameInput as unknown as { value: string }).value.trim();
             const hostValue = (hostInput as unknown as { value: string }).value.trim();
             const portValue = parseInt((portInput as unknown as { value: string }).value, 10) || 8000;
@@ -334,7 +347,7 @@ export class HostTracker extends ManagerClient<ParamsBase, HostTrackerEvents> {
                 createdAt: Date.now(),
             };
 
-            HostTracker.saveConnection(connection);
+            await HostTracker.saveConnection(connection);
             this.renderSavedConnections();
             closeDialog();
         });
