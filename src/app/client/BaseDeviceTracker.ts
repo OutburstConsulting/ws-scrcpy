@@ -111,8 +111,8 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
         const block = this.getOrCreateTrackerBlock(tbody, this.trackerName);
         if (data.length === 0) {
             const emptyMessage = document.createElement('div');
-            emptyMessage.className = 'no-devices-message';
-            emptyMessage.textContent = 'No devices detected';
+            emptyMessage.className = 'empty-message';
+            emptyMessage.textContent = 'No devices found';
             block.appendChild(emptyMessage);
         } else {
             data.forEach((item) => {
@@ -125,15 +125,31 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
         if (!parent) {
             return;
         }
+        const headerBlockId = `${this.elementId}_header`;
+        let headerEl = document.getElementById(headerBlockId);
+        if (!headerEl) {
+            headerEl = document.createElement('div');
+            headerEl.id = headerBlockId;
+            headerEl.className = 'section-header';
+
+            const titleEl = document.createElement('span');
+            titleEl.className = 'section-title';
+            titleEl.textContent = 'Discovered Devices';
+            headerEl.appendChild(titleEl);
+        }
+
+        // Update or create the tracker name subtitle
         const nameBlockId = `${this.elementId}_name`;
         let nameEl = document.getElementById(nameBlockId);
         if (!nameEl) {
-            nameEl = document.createElement('div');
+            nameEl = document.createElement('span');
             nameEl.id = nameBlockId;
-            nameEl.className = 'tracker-name';
+            nameEl.className = 'tracker-subtitle';
+            headerEl.appendChild(nameEl);
         }
         nameEl.innerText = name;
-        parent.insertBefore(nameEl, parent.firstChild);
+
+        parent.insertBefore(headerEl, parent.firstChild);
     }
 
     private getOrCreateTrackerBlock(parent: Element, controlCenterName: string): Element {
@@ -141,6 +157,7 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
         if (!el) {
             el = document.createElement('div');
             el.id = this.elementId;
+            el.className = 'tracker-section';
             parent.appendChild(el);
             this.created = true;
         } else {

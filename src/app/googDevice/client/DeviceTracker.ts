@@ -12,6 +12,10 @@ import { ParamsDeviceTracker } from '../../../types/ParamsDeviceTracker';
 import { HostItem } from '../../../types/Configuration';
 import { ChannelCode } from '../../../common/ChannelCode';
 import { Tool } from '../../client/Tool';
+import { StreamClientScrcpy } from './StreamClientScrcpy';
+import { ConfigureScrcpy } from './ConfigureScrcpy';
+import { ParamsStreamScrcpy } from '../../../types/ParamsStreamScrcpy';
+import { HostTracker } from '../../client/HostTracker';
 
 export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never> {
     public static readonly ACTION = ACTION.GOOG_DEVICE_LIST;
@@ -19,6 +23,36 @@ export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never
     private static instancesByUrl: Map<string, DeviceTracker> = new Map();
     protected static tools: Set<Tool> = new Set();
     protected tableId = 'goog_device_list';
+
+    // Storage keys and constants
+    private static readonly PLAYER_STORAGE_KEY = 'device_list::selected_player';
+    private static readonly DEFAULT_PLAYER = 'mse';
+    private static readonly CONFIGURE_OPTION = 'configure';
+
+    // Get the last selected player from localStorage
+    private static getSelectedPlayer(): string {
+        if (!window.localStorage) {
+            return this.DEFAULT_PLAYER;
+        }
+        const stored = window.localStorage.getItem(this.PLAYER_STORAGE_KEY);
+        if (stored) {
+            // Verify the player still exists
+            const players = StreamClientScrcpy.getPlayers();
+            const exists = players.some((p) => p.playerCodeName === stored);
+            if (exists) {
+                return stored;
+            }
+        }
+        return this.DEFAULT_PLAYER;
+    }
+
+    // Save the selected player to localStorage
+    private static setSelectedPlayer(playerCodeName: string): void {
+        if (!window.localStorage) {
+            return;
+        }
+        window.localStorage.setItem(this.PLAYER_STORAGE_KEY, playerCodeName);
+    }
 
     public static start(hostItem: HostItem): DeviceTracker {
         const url = this.buildUrlForTracker(hostItem).toString();
@@ -252,8 +286,51 @@ export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never
         selectElement.onchange = this.onInterfaceSelected;
         body.appendChild(selectElement);
 
-        // View Stream button - only show for active devices with server running
+        // View Stream button and player dropdown - only show for active devices with server running
         if (isActive && hasPid) {
+            const streamContainer = document.createElement('div');
+            streamContainer.className = 'stream-action-container';
+
+            // Player dropdown
+            const playerSelectId = `player_select_${fullName}`;
+            const playerSelect = document.createElement('sl-select');
+            playerSelect.id = playerSelectId;
+            playerSelect.setAttribute('size', 'medium');
+            playerSelect.setAttribute('placeholder', 'Select Player');
+            playerSelect.className = 'player-select';
+
+            // Get available players and last selected
+            const players = StreamClientScrcpy.getPlayers();
+            const lastSelectedPlayer = DeviceTracker.getSelectedPlayer();
+
+            players.forEach((playerClass) => {
+                const option = document.createElement('sl-option');
+                option.setAttribute('value', playerClass.playerCodeName);
+                option.textContent = playerClass.playerFullName;
+                playerSelect.appendChild(option);
+            });
+
+            // Add divider and Configure option
+            const divider = document.createElement('sl-divider');
+            playerSelect.appendChild(divider);
+
+            const configureOption = document.createElement('sl-option');
+            configureOption.setAttribute('value', DeviceTracker.CONFIGURE_OPTION);
+            configureOption.textContent = 'Configure...';
+            playerSelect.appendChild(configureOption);
+
+            // Set the default value
+            playerSelect.setAttribute('value', lastSelectedPlayer);
+
+            // Save selection when changed
+            playerSelect.addEventListener('sl-change', (e: Event) => {
+                const target = e.target as HTMLElement & { value: string };
+                DeviceTracker.setSelectedPlayer(target.value);
+            });
+
+            streamContainer.appendChild(playerSelect);
+
+            // View Stream button
             const viewStreamBtn = document.createElement('sl-button');
             viewStreamBtn.id = viewStreamBtnId;
             viewStreamBtn.setAttribute('variant', 'primary');
@@ -266,8 +343,11 @@ export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never
             viewStreamBtn.setAttribute(Attribute.PORT, String(this.params.port));
             viewStreamBtn.setAttribute(Attribute.PATHNAME, this.params.pathname || '');
             viewStreamBtn.setAttribute(Attribute.USE_PROXY, String(this.params.useProxy));
+            viewStreamBtn.setAttribute('data-player-select', playerSelectId);
             viewStreamBtn.onclick = this.onViewStreamClick;
-            body.appendChild(viewStreamBtn);
+            streamContainer.appendChild(viewStreamBtn);
+
+            body.appendChild(streamContainer);
         } else if (isActive && !hasPid) {
             // Start server button
             const startServerBtn = document.createElement('sl-button');
@@ -367,8 +447,54 @@ export class DeviceTracker extends BaseDeviceTracker<GoogDeviceDescriptor, never
             return;
         }
 
-        // Use MSE player (H264 Converter) directly
-        const playerCodeName = 'mse';
+        // Get the selected player from the dropdown
+        const playerSelectId = button.getAttribute('data-player-select');
+        let playerCodeName = DeviceTracker.getSelectedPlayer();
+
+        if (playerSelectId) {
+            const playerSelect = document.getElementById(playerSelectId) as HTMLElement & { value: string };
+            if (playerSelect && playerSelect.value) {
+                playerCodeName = playerSelect.value;
+                // Only save if it's not the configure option
+                if (playerCodeName !== DeviceTracker.CONFIGURE_OPTION) {
+                    DeviceTracker.setSelectedPlayer(playerCodeName);
+                }
+            }
+        }
+
+        // If "Configure..." is selected, open the configuration dialog
+        if (playerCodeName === DeviceTracker.CONFIGURE_OPTION) {
+            const descriptor = this.getDescriptorByUdid(udid);
+            if (!descriptor) {
+                return;
+            }
+            const options: ParamsStreamScrcpy = {
+                udid,
+                ws,
+                player: '',
+                action: ACTION.STREAM_SCRCPY,
+                secure,
+                hostname,
+                port,
+                pathname,
+                useProxy,
+            };
+            const dialog = new ConfigureScrcpy(this, descriptor, options);
+            const onDialogClosed = (event: { dialog: ConfigureScrcpy; result: boolean }) => {
+                dialog.off('closed', onDialogClosed);
+                if (event.result) {
+                    // Remove the devices holder completely when stream starts
+                    const holder = document.getElementById('devices');
+                    if (holder) {
+                        holder.remove();
+                    }
+                    HostTracker.getInstance().destroy();
+                }
+            };
+            dialog.on('closed', onDialogClosed);
+            return;
+        }
+
         const action = ACTION.STREAM_SCRCPY;
 
         const link = DeviceTracker.buildLink(

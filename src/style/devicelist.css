@@ -29,6 +29,22 @@ body.list {
     margin: 0 auto;
     height: calc(100% - 40px);
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#devices > .main-title {
+    order: -1;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0 0 24px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--device-border-color);
+}
+
+#devices > .custom-connections-section {
+    order: 999;
 }
 
 body.stream #devices {
@@ -60,14 +76,17 @@ body.list #device_list_menu {
     gap: 16px;
 }
 
-/* Tracker Name Header */
-#devices .tracker-name {
-    padding: 10px 0;
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--text-color);
-    border-bottom: 1px solid var(--device-border-color);
-    margin-bottom: 8px;
+/* Tracker Section */
+#devices .tracker-section {
+    margin-bottom: 16px;
+}
+
+/* Tracker Subtitle (connection info) */
+#devices .tracker-subtitle {
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--text-color-light);
+    margin-left: 12px;
 }
 
 /* Device Card Styling */
@@ -187,14 +206,281 @@ body.list #device_list_menu {
     gap: 8px;
 }
 
-/* No Devices Message */
-#devices .no-devices-message {
-    padding: 40px 20px;
-    text-align: center;
+/* Stream Action Container - Player dropdown + View Stream button */
+#devices .stream-action-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#devices .stream-action-container .player-select {
+    min-width: 200px;
+    flex-shrink: 0;
+}
+
+#devices .stream-action-container .player-select::part(combobox) {
+    border: 1px solid var(--device-border-color);
+    border-radius: 4px;
+    background-color: var(--control-buttons-bg-color);
+}
+
+#devices .stream-action-container .player-select::part(listbox) {
+    background-color: var(--control-buttons-bg-color);
+    border: 1px solid var(--device-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+#devices .stream-action-container .player-select sl-option::part(base) {
+    color: var(--text-color);
+}
+
+#devices .stream-action-container .player-select sl-option::part(base):hover {
+    background-color: var(--device-list-hover-color);
+}
+
+#devices .stream-action-container .player-select sl-divider {
+    margin: 4px 0;
+    border-color: var(--device-border-color);
+}
+
+#devices .stream-action-container sl-button::part(base) {
+    border: none;
+}
+
+/* Section Headers */
+#devices .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--device-border-color);
+    margin-bottom: 16px;
+}
+
+#devices .section-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+#devices .section-header sl-button::part(base) {
+    border: none;
+}
+
+/* Empty Messages */
+#devices .empty-message {
     color: var(--text-color-light);
     font-style: italic;
-    font-size: 1.1rem;
+    padding: 20px;
+    text-align: center;
+    background-color: var(--device-list-stripe-color);
+    border-radius: 8px;
 }
+
+/* Custom Connections Section */
+#devices .custom-connections-section {
+    margin-top: 32px;
+}
+
+#devices .custom-connections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#devices .custom-connection-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background-color: var(--device-list-stripe-color);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+#devices .custom-connection-item:hover {
+    background-color: var(--device-list-hover-color);
+}
+
+#devices .custom-connection-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#devices .custom-connection-name {
+    font-weight: 500;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#devices .custom-connection-url {
+    font-size: 0.85em;
+    color: var(--text-color-light);
+    font-family: monospace;
+}
+
+#devices .custom-connection-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: 12px;
+}
+
+/* Add Connection Dialog */
+.add-connection-dialog::part(panel) {
+    max-width: 400px;
+    padding: 10px;
+    background-color: var(--control-buttons-bg-color);
+    border: 1px solid var(--device-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.add-connection-dialog::part(overlay) {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.add-connection-dialog::part(header) {
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+
+.add-connection-dialog::part(body) {
+    color: var(--text-color);
+}
+
+.add-connection-dialog::part(footer) {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.add-connection-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.add-connection-form sl-input,
+.add-connection-form sl-select {
+    width: 100%;
+}
+
+.add-connection-form sl-input::part(base) {
+    background-color: var(--control-buttons-bg-color);
+    border: 1px solid var(--device-border-color);
+}
+
+.add-connection-form sl-input::part(input) {
+    color: var(--text-color);
+    padding: 5px;
+}
+
+.add-connection-form sl-input::part(input)::placeholder {
+    color: var(--text-color-light);
+    opacity: 0.6;
+}
+
+.add-connection-form sl-input::part(form-control-label) {
+    color: var(--text-color);
+    margin-bottom: 5px;
+}
+
+.add-connection-form sl-checkbox::part(label) {
+    color: var(--text-color);
+}
+
+.add-connection-form sl-select::part(combobox) {
+    background-color: var(--control-buttons-bg-color);
+    border: 1px solid var(--device-border-color);
+    padding: 5px;
+}
+
+.add-connection-form sl-select::part(form-control-label) {
+    color: var(--text-color);
+    margin-bottom: 5px;
+}
+
+.add-connection-form sl-select::part(display-input) {
+    color: var(--text-color);
+}
+
+.add-connection-form sl-select::part(listbox) {
+    background-color: var(--control-buttons-bg-color);
+    border: 1px solid var(--device-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.add-connection-form sl-select sl-option::part(base) {
+    color: var(--text-color);
+}
+
+.add-connection-form sl-select sl-option::part(base):hover {
+    background-color: var(--device-list-hover-color);
+}
+
+/* Hoisted select dropdown (renders at body level) */
+sl-select[hoist]::part(listbox) {
+    background-color: var(--control-buttons-bg-color);
+    border: 1px solid var(--device-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+sl-select[hoist] sl-option::part(base) {
+    color: var(--text-color);
+}
+
+sl-select[hoist] sl-option::part(base):hover {
+    background-color: var(--device-list-hover-color);
+}
+
+.add-connection-form .type-select-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.add-connection-form .type-select-label {
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.add-connection-form .type-select {
+    padding: 8px 12px;
+    background-color: var(--control-buttons-bg-color);
+    border: 1px solid var(--device-border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.add-connection-form .type-select:focus {
+    outline: none;
+    border-color: var(--sl-color-primary-600);
+}
+
+.add-connection-form .secure-checkbox-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    color: var(--text-color);
+}
+
+.add-connection-form .secure-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--sl-color-primary-600);
+}
+
 
 /* Legacy styles for backwards compatibility */
 #devices .device-list div.device {
