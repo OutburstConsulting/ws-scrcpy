@@ -298,9 +298,7 @@ export abstract class BaseDeviceTracker<DD extends BaseDeviceDescriptor, TE exte
         }
 
         // Get or create the device-list inside the wrapper
-        let tbody = document.querySelector(
-            `#${wrapperId} #${deviceListId}.${className}`,
-        ) as Element;
+        let tbody = document.querySelector(`#${wrapperId} #${deviceListId}.${className}`) as Element;
         if (!tbody) {
             const fragment = html`<div id="${deviceListId}" class="${className}"></div>`.content;
             wrapper.appendChild(fragment);

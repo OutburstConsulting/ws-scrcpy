@@ -22,6 +22,12 @@ export type DisplayCombinedInfo = {
     connectionCount: number;
 };
 
+export type SessionCountInfo = {
+    udid: string;
+    displayId: number;
+    count: number;
+};
+
 interface StreamReceiverEvents {
     video: ArrayBuffer;
     deviceMessage: DeviceMessage;
@@ -30,6 +36,7 @@ interface StreamReceiverEvents {
     encoders: string[];
     connected: void;
     disconnected: CloseEvent;
+    sessionCount: SessionCountInfo;
 }
 
 const TAG = '[StreamReceiver]';
@@ -146,6 +153,20 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
             }
 
             this.emit('video', new Uint8Array(event.data));
+        } else if (typeof event.data === 'string') {
+            // Handle JSON messages (e.g., session count updates)
+            try {
+                const message = JSON.parse(event.data);
+                if (message.type === 'sessionCount') {
+                    this.emit('sessionCount', {
+                        udid: message.udid,
+                        displayId: message.displayId,
+                        count: message.count,
+                    } as SessionCountInfo);
+                }
+            } catch (e) {
+                console.warn(`${TAG} Failed to parse JSON message:`, e);
+            }
         }
     }
 

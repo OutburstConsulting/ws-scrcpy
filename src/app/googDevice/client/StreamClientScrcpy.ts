@@ -6,7 +6,7 @@ import { GoogWorkflowPanel } from '../toolbox/GoogWorkflowPanel';
 import VideoSettings from '../../VideoSettings';
 import Size from '../../Size';
 import { ControlMessage } from '../../controlMessage/ControlMessage';
-import { ClientsStats, DisplayCombinedInfo } from '../../client/StreamReceiver';
+import { ClientsStats, DisplayCombinedInfo, SessionCountInfo } from '../../client/StreamReceiver';
 import { CommandControlMessage } from '../../controlMessage/CommandControlMessage';
 import Util from '../../Util';
 import FilePushHandler from '../filePush/FilePushHandler';
@@ -58,6 +58,7 @@ export class StreamClientScrcpy
     private touchHandler?: FeaturedInteractionHandler;
     private moreBox?: GoogMoreBox;
     private workflowPanel?: GoogWorkflowPanel;
+    private toolBox?: GoogToolBox;
     private player?: BasePlayer;
     private filePushHandler?: FilePushHandler;
     private fitToScreen?: boolean;
@@ -188,6 +189,13 @@ export class StreamClientScrcpy
         this.setTitle(`Stream ${this.deviceName}`);
     };
 
+    public onSessionCount = (info: SessionCountInfo): void => {
+        this.clientsCount = info.count;
+        if (this.toolBox) {
+            this.toolBox.updateSessionCount(info.count);
+        }
+    };
+
     public onDisplayInfo = (infoArray: DisplayCombinedInfo[]): void => {
         if (!this.player) {
             return;
@@ -255,6 +263,7 @@ export class StreamClientScrcpy
         this.streamReceiver.off('video', this.onVideo);
         this.streamReceiver.off('clientsStats', this.onClientsStats);
         this.streamReceiver.off('displayInfo', this.onDisplayInfo);
+        this.streamReceiver.off('sessionCount', this.onSessionCount);
         this.streamReceiver.off('disconnected', this.onDisconnected);
 
         this.filePushHandler?.release();
@@ -340,6 +349,7 @@ export class StreamClientScrcpy
                 }
             },
         });
+        this.toolBox = googToolBox;
         this.controlButtons = googToolBox.getHolderElement();
 
         // Build the structure: video on left, toolbox on right
@@ -375,6 +385,7 @@ export class StreamClientScrcpy
         streamReceiver.on('video', this.onVideo);
         streamReceiver.on('clientsStats', this.onClientsStats);
         streamReceiver.on('displayInfo', this.onDisplayInfo);
+        streamReceiver.on('sessionCount', this.onSessionCount);
         streamReceiver.on('disconnected', this.onDisconnected);
         console.log(TAG, player.getName(), udid);
     }

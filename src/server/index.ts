@@ -25,6 +25,7 @@ const config = Config.getInstance();
 /// #if INCLUDE_GOOG
 async function loadGoogModules() {
     const { ControlCenter } = await import('./goog-device/services/ControlCenter');
+    const { SessionTracker } = await import('./goog-device/services/SessionTracker');
     const { DeviceTracker } = await import('./goog-device/mw/DeviceTracker');
     const { WebsocketProxyOverAdb } = await import('./goog-device/mw/WebsocketProxyOverAdb');
 
@@ -37,6 +38,7 @@ async function loadGoogModules() {
     }
 
     servicesToStart.push(ControlCenter);
+    servicesToStart.push(SessionTracker);
 
     /// #if INCLUDE_ADB_SHELL
     const { RemoteShell } = await import('./goog-device/mw/RemoteShell');

@@ -7,10 +7,11 @@ import { ToolBoxElement } from '../../toolbox/ToolBoxElement';
 import { ToolBoxCheckbox } from '../../toolbox/ToolBoxCheckbox';
 import { StreamClientScrcpy } from '../client/StreamClientScrcpy';
 import { BasePlayer } from '../../player/BasePlayer';
+import { ToolBoxSessionCounter } from '../../toolbox/ToolBoxSessionCounter';
 
 const BUTTONS = [
     {
-        title: 'Power',
+        title: 'Power button',
         code: KeyEvent.KEYCODE_POWER,
         icon: SvgImage.Icon.POWER,
     },
@@ -25,17 +26,17 @@ const BUTTONS = [
         icon: SvgImage.Icon.VOLUME_DOWN,
     },
     {
-        title: 'Back',
+        title: 'Back button',
         code: KeyEvent.KEYCODE_BACK,
         icon: SvgImage.Icon.BACK,
     },
     {
-        title: 'Home',
+        title: 'Home button',
         code: KeyEvent.KEYCODE_HOME,
         icon: SvgImage.Icon.HOME,
     },
     {
-        title: 'Overview',
+        title: 'Recent apps',
         code: KeyEvent.KEYCODE_APP_SWITCH,
         icon: SvgImage.Icon.OVERVIEW,
     },
@@ -47,8 +48,17 @@ export interface ToolBoxPanelCallbacks {
 }
 
 export class GoogToolBox extends ToolBox {
-    protected constructor(list: ToolBoxElement<any>[]) {
+    private sessionCounter?: ToolBoxSessionCounter;
+
+    protected constructor(list: ToolBoxElement<any>[], sessionCounter?: ToolBoxSessionCounter) {
         super(list);
+        this.sessionCounter = sessionCounter;
+    }
+
+    public updateSessionCount(count: number): void {
+        if (this.sessionCounter) {
+            this.sessionCounter.updateCount(count);
+        }
     }
 
     public static createToolBox(
@@ -103,7 +113,7 @@ export class GoogToolBox extends ToolBox {
         if (moreBox) {
             const displayId = player.getVideoSettings().displayId;
             const id = `show_more_${udid}_${playerName}_${displayId}`;
-            const more = new ToolBoxCheckbox('More', SvgImage.Icon.MORE, id);
+            const more = new ToolBoxCheckbox('More options', SvgImage.Icon.SETTINGS, id);
             more.addEventListener('click', (_, el) => {
                 const element = el.getElement();
                 const visible = element.checked;
@@ -119,7 +129,7 @@ export class GoogToolBox extends ToolBox {
         if (workflowBox) {
             const displayId = player.getVideoSettings().displayId;
             const workflowId = `show_workflow_${udid}_${playerName}_${displayId}`;
-            const workflowToggle = new ToolBoxCheckbox('Workflows', SvgImage.Icon.SETTINGS, workflowId);
+            const workflowToggle = new ToolBoxCheckbox('Run workflows', SvgImage.Icon.PLAY, workflowId);
             workflowToggle.addEventListener('click', (_, el) => {
                 const element = el.getElement();
                 const visible = element.checked;
@@ -131,6 +141,11 @@ export class GoogToolBox extends ToolBox {
             });
             elements.unshift(workflowToggle);
         }
-        return new GoogToolBox(elements);
+
+        // Add session counter at the top
+        const sessionCounter = new ToolBoxSessionCounter();
+        elements.unshift(sessionCounter);
+
+        return new GoogToolBox(elements, sessionCounter);
     }
 }

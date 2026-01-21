@@ -212,6 +212,61 @@ body.stream {
     fill: var(--svg-checkbox-bg-color);
 }
 
+/* Session Counter Styles */
+.session-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    margin: 0.357rem 0.5rem;
+    background-color: var(--controls-bg-color);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-color);
+    transition: color 0.3s ease;
+}
+
+.session-counter-icon {
+    fill: var(--svg-button-fill);
+    flex-shrink: 0;
+    transition: fill 0.3s ease;
+}
+
+.session-counter-count {
+    min-width: 1rem;
+    text-align: center;
+}
+
+/* Highlighted state when more than 1 viewer */
+.session-counter-highlighted {
+    color: #f5a623;
+}
+
+.session-counter-highlighted .session-counter-icon {
+    fill: #f5a623;
+}
+
+/* Wobble animation with scale */
+@keyframes session-counter-wobble {
+    0% { transform: scale(1) rotate(0deg); }
+    10% { transform: scale(1.5) rotate(-10deg); }
+    20% { transform: scale(2) rotate(10deg); }
+    30% { transform: scale(2) rotate(-8deg); }
+    40% { transform: scale(2) rotate(6deg); }
+    50% { transform: scale(2) rotate(-4deg); }
+    60% { transform: scale(1.8) rotate(3deg); }
+    70% { transform: scale(1.5) rotate(-2deg); }
+    80% { transform: scale(1.3) rotate(1deg); }
+    90% { transform: scale(1.1) rotate(0deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+.session-counter-wobble {
+    animation: session-counter-wobble 0.7s ease-in-out;
+}
+
 /* Workflow Panel Styles */
 .workflow-panel {
     position: absolute;
