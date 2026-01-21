@@ -1,0 +1,107 @@
+{
+  "name": "unlock",
+  "screenSize": {
+    "width": 320,
+    "height": 720
+  },
+  "actions": [
+    {
+      "type": "keycode",
+      "timestamp": 2102,
+      "keycode": 26,
+      "keyName": "Power"
+    },
+    {
+      "type": "tap",
+      "timestamp": 3918,
+      "position": {
+        "point": {
+          "x": 161,
+          "y": 541
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 387
+    },
+    {
+      "type": "tap",
+      "timestamp": 6061,
+      "position": {
+        "point": {
+          "x": 162,
+          "y": 602
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 105
+    },
+    {
+      "type": "tap",
+      "timestamp": 6499,
+      "position": {
+        "point": {
+          "x": 162,
+          "y": 602
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 104
+    },
+    {
+      "type": "tap",
+      "timestamp": 6926,
+      "position": {
+        "point": {
+          "x": 162,
+          "y": 602
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 95
+    },
+    {
+      "type": "tap",
+      "timestamp": 7351,
+      "position": {
+        "point": {
+          "x": 162,
+          "y": 602
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 93
+    },
+    {
+      "type": "tap",
+      "timestamp": 8164,
+      "position": {
+        "point": {
+          "x": 227,
+          "y": 589
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 87
+    }
+  ],
+  "exportedAt": 1769024223822,
+  "version": 1
+}

@@ -1,0 +1,107 @@
+{
+  "name": "enable_duo",
+  "screenSize": {
+    "width": 320,
+    "height": 720
+  },
+  "actions": [
+    {
+      "type": "keycode",
+      "timestamp": 1906,
+      "keycode": 3,
+      "keyName": "Home"
+    },
+    {
+      "type": "tap",
+      "timestamp": 3077,
+      "position": {
+        "point": {
+          "x": 198,
+          "y": 454
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 90
+    },
+    {
+      "type": "tap",
+      "timestamp": 4442,
+      "position": {
+        "point": {
+          "x": 25,
+          "y": 71
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 74
+    },
+    {
+      "type": "tap",
+      "timestamp": 5850,
+      "position": {
+        "point": {
+          "x": 58,
+          "y": 324
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 83
+    },
+    {
+      "type": "tap",
+      "timestamp": 6900,
+      "position": {
+        "point": {
+          "x": 292,
+          "y": 265
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 58
+    },
+    {
+      "type": "tap",
+      "timestamp": 9286,
+      "position": {
+        "point": {
+          "x": 17,
+          "y": 73
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 97
+    },
+    {
+      "type": "tap",
+      "timestamp": 11075,
+      "position": {
+        "point": {
+          "x": 72,
+          "y": 184
+        },
+        "screenSize": {
+          "width": 320,
+          "height": 720
+        }
+      },
+      "duration": 69
+    }
+  ],
+  "exportedAt": 1769024009156,
+  "version": 1
+}
