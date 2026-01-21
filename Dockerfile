@@ -1,18 +1,14 @@
-FROM node:24-bullseye
-
-LABEL maintainer="Outburst"
-LABEL description="Custom ws-scrcpy with workflow recording and enhanced UI"
-
-ENV LANG C.UTF-8
+# ============================================
+# Stage 1: Builder
+# ============================================
+FROM node:24-alpine AS builder
 
 WORKDIR /ws-scrcpy
 
-# Install build dependencies and ADB
-RUN apt-get update && apt-get install -y \
-    android-tools-adb \
-    build-essential \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apk add --no-cache \
+    build-base \
+    python3
 
 # Install node-gyp globally
 RUN npm install -g node-gyp
@@ -20,14 +16,37 @@ RUN npm install -g node-gyp
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
+# Install all dependencies (including devDependencies for build)
 RUN npm install
 
-# Copy the rest of the source code
+# Copy source code
 COPY . .
 
 # Build the application
 RUN npm run dist
+
+# Remove devDependencies to keep only production deps
+RUN rm -rf node_modules && npm install --omit=dev
+
+# ============================================
+# Stage 2: Runtime
+# ============================================
+FROM node:24-alpine
+
+LABEL maintainer="Outburst"
+LABEL description="Custom ws-scrcpy with workflow recording and enhanced UI"
+
+ENV LANG=C.UTF-8
+ENV NODE_ENV=production
+
+WORKDIR /ws-scrcpy
+
+# Install only runtime dependencies (ADB for device communication)
+RUN apk add --no-cache android-tools
+
+# Copy built artifacts from builder
+COPY --from=builder /ws-scrcpy/dist ./dist
+COPY --from=builder /ws-scrcpy/node_modules ./node_modules
 
 # Expose the default port
 EXPOSE 8000
