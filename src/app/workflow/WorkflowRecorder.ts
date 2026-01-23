@@ -53,11 +53,13 @@ export class WorkflowRecorder {
     private screenSize: { width: number; height: number } = { width: 0, height: 0 };
     private currentTouchState: TouchState | null = null;
     private stateCallback?: RecorderStateCallback;
+    private readonly deviceId: string;
 
     // Threshold to distinguish tap from swipe (pixels)
     private static readonly SWIPE_THRESHOLD = 10;
 
-    constructor(stateCallback?: RecorderStateCallback) {
+    constructor(deviceId: string, stateCallback?: RecorderStateCallback) {
+        this.deviceId = deviceId;
         this.stateCallback = stateCallback;
     }
 
@@ -79,6 +81,7 @@ export class WorkflowRecorder {
 
         const workflow: Workflow = {
             id: WorkflowStorage.generateId(),
+            deviceId: this.deviceId,
             name: `Workflow ${new Date().toLocaleString()}`,
             createdAt: Date.now(),
             updatedAt: Date.now(),

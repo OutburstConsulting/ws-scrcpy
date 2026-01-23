@@ -51,6 +51,7 @@ export type WorkflowAction = TapAction | SwipeAction | TextAction | KeyCodeActio
 
 export interface Workflow {
     id: string;
+    deviceId: string;
     name: string;
     description?: string;
     createdAt: number;

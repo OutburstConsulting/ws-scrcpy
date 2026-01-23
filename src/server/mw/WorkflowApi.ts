@@ -11,10 +11,15 @@ export class WorkflowApi {
 
     private setupRoutes(): void {
         // GET /api/workflows - Get all workflows
-        this.router.get('/', (_req: Request, res: Response) => {
+        this.router.get('/', (req: Request, res: Response) => {
             try {
+                const deviceId = String(req.query.deviceId || '');
+                if (!deviceId) {
+                    res.status(400).json({ success: false, error: 'Missing deviceId' });
+                    return;
+                }
                 const db = WorkflowDatabase.getInstance();
-                const workflows = db.getAllWorkflows();
+                const workflows = db.getAllWorkflows(deviceId);
                 res.json({ success: true, workflows });
             } catch (error) {
                 console.error('[WorkflowApi] Error getting workflows:', error);
@@ -25,8 +30,13 @@ export class WorkflowApi {
         // GET /api/workflows/:id - Get a specific workflow
         this.router.get('/:id', (req: Request, res: Response) => {
             try {
+                const deviceId = String(req.query.deviceId || '');
+                if (!deviceId) {
+                    res.status(400).json({ success: false, error: 'Missing deviceId' });
+                    return;
+                }
                 const db = WorkflowDatabase.getInstance();
-                const workflow = db.getWorkflowById(req.params.id);
+                const workflow = db.getWorkflowById(req.params.id, deviceId);
                 if (workflow) {
                     res.json({ success: true, workflow });
                 } else {
@@ -42,7 +52,7 @@ export class WorkflowApi {
         this.router.post('/', (req: Request, res: Response) => {
             try {
                 const workflow = req.body as Workflow;
-                if (!workflow.id || !workflow.name || !workflow.actions) {
+                if (!workflow.id || !workflow.deviceId || !workflow.name || !workflow.actions) {
                     res.status(400).json({ success: false, error: 'Invalid workflow data' });
                     return;
                 }
@@ -60,8 +70,13 @@ export class WorkflowApi {
         // DELETE /api/workflows/:id - Delete a workflow
         this.router.delete('/:id', (req: Request, res: Response) => {
             try {
+                const deviceId = String(req.query.deviceId || '');
+                if (!deviceId) {
+                    res.status(400).json({ success: false, error: 'Missing deviceId' });
+                    return;
+                }
                 const db = WorkflowDatabase.getInstance();
-                const deleted = db.deleteWorkflow(req.params.id);
+                const deleted = db.deleteWorkflow(req.params.id, deviceId);
                 if (deleted) {
                     res.json({ success: true });
                 } else {

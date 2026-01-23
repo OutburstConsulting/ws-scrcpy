@@ -10,9 +10,9 @@ interface ApiResponse<T> {
 export class WorkflowStorage {
     private static readonly API_BASE = '/api/workflows';
 
-    public static async loadAll(): Promise<Workflow[]> {
+    public static async loadAll(deviceId: string): Promise<Workflow[]> {
         try {
-            const response = await fetch(this.API_BASE);
+            const response = await fetch(`${this.API_BASE}?deviceId=${encodeURIComponent(deviceId)}`);
             const data: ApiResponse<Workflow> = await response.json();
             if (data.success && data.workflows) {
                 return data.workflows;
@@ -24,9 +24,9 @@ export class WorkflowStorage {
         }
     }
 
-    public static async getById(id: string): Promise<Workflow | undefined> {
+    public static async getById(id: string, deviceId: string): Promise<Workflow | undefined> {
         try {
-            const response = await fetch(`${this.API_BASE}/${id}`);
+            const response = await fetch(`${this.API_BASE}/${id}?deviceId=${encodeURIComponent(deviceId)}`);
             const data: ApiResponse<Workflow> = await response.json();
             if (data.success && data.workflow) {
                 return data.workflow;
@@ -55,11 +55,14 @@ export class WorkflowStorage {
         }
     }
 
-    public static async delete(workflowId: string): Promise<boolean> {
+    public static async delete(workflowId: string, deviceId: string): Promise<boolean> {
         try {
-            const response = await fetch(`${this.API_BASE}/${workflowId}`, {
+            const response = await fetch(
+                `${this.API_BASE}/${workflowId}?deviceId=${encodeURIComponent(deviceId)}`,
+                {
                 method: 'DELETE',
-            });
+                },
+            );
             const data: ApiResponse<Workflow> = await response.json();
             return data.success;
         } catch (error) {

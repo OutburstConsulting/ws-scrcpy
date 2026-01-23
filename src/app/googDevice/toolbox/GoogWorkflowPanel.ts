@@ -18,10 +18,12 @@ export class GoogWorkflowPanel {
 
     private recorder: WorkflowRecorder;
     private player: WorkflowPlayer;
+    private readonly deviceId: string;
 
-    constructor(_udid: string, private basePlayer: BasePlayer, listener: WorkflowPlayerListener) {
+    constructor(udid: string, private basePlayer: BasePlayer, listener: WorkflowPlayerListener) {
+        this.deviceId = udid;
         // Create recorder and player
-        this.recorder = new WorkflowRecorder((recording) => this.onRecordingStateChange(recording));
+        this.recorder = new WorkflowRecorder(this.deviceId, (recording) => this.onRecordingStateChange(recording));
         this.player = new WorkflowPlayer(
             listener,
             (playing, name) => this.onPlayingStateChange(playing, name),
@@ -359,7 +361,7 @@ export class GoogWorkflowPanel {
 
     private async refreshWorkflowList(): Promise<void> {
         this.workflowListContainer.innerHTML = '';
-        const workflows = await WorkflowStorage.loadAll();
+        const workflows = await WorkflowStorage.loadAll(this.deviceId);
 
         if (workflows.length === 0) {
             const empty = document.createElement('div');
@@ -402,6 +404,7 @@ export class GoogWorkflowPanel {
                 const newName = (nameInput as unknown as { value: string }).value.trim();
                 if (newName && newName !== workflow.name) {
                     workflow.name = newName;
+                    workflow.deviceId = this.deviceId;
                     await WorkflowStorage.save(workflow);
                 }
                 this.editingWorkflowId = null;
@@ -531,7 +534,7 @@ export class GoogWorkflowPanel {
             }
             deleteIcon.addEventListener('click', async () => {
                 if (confirm(`Delete "${workflow.name}"?`)) {
-                    await WorkflowStorage.delete(workflow.id);
+                    await WorkflowStorage.delete(workflow.id, this.deviceId);
                     await this.refreshWorkflowList();
                 }
             });
@@ -550,6 +553,7 @@ export class GoogWorkflowPanel {
                     const newName = nameInput.value.trim();
                     if (newName) {
                         workflow.name = newName;
+                        workflow.deviceId = this.deviceId;
                         await WorkflowStorage.save(workflow);
                     }
                 }
@@ -640,6 +644,7 @@ export class GoogWorkflowPanel {
             // Create a new workflow from the imported data
             const workflow: Workflow = {
                 id: WorkflowStorage.generateId(),
+                deviceId: this.deviceId,
                 name: data.name,
                 description: data.description,
                 createdAt: Date.now(),
