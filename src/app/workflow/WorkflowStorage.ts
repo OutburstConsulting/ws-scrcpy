@@ -57,12 +57,9 @@ export class WorkflowStorage {
 
     public static async delete(workflowId: string, deviceId: string): Promise<boolean> {
         try {
-            const response = await fetch(
-                `${this.API_BASE}/${workflowId}?deviceId=${encodeURIComponent(deviceId)}`,
-                {
+            const response = await fetch(`${this.API_BASE}/${workflowId}?deviceId=${encodeURIComponent(deviceId)}`, {
                 method: 'DELETE',
-                },
-            );
+            });
             const data: ApiResponse<Workflow> = await response.json();
             return data.success;
         } catch (error) {

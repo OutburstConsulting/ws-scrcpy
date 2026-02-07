@@ -2,11 +2,13 @@ import { Message } from '../../types/Message';
 import * as http from 'http';
 import { Multiplexer } from '../../packages/multiplexer/Multiplexer';
 import WS from 'ws';
+import type { AuthUser } from '../services/AuthService';
 
 export type RequestParameters = {
     request: http.IncomingMessage;
     url: URL;
     action: string;
+    user?: AuthUser;
 };
 
 export interface MwFactory {

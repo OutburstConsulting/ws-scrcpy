@@ -169,6 +169,21 @@ Configuration file format: [Configuration.d.ts](/src/types/Configuration.d.ts).
 
 Configuration file example: [config.example.yaml](/config.example.yaml).
 
+OIDC settings can be provided with environment variables (useful for Kubernetes
+ConfigMaps/Secrets). When set, they override the same fields in the config file:
+
+```text
+WS_SCRCPY_OIDC_ISSUER_URL
+WS_SCRCPY_OIDC_CLIENT_ID
+WS_SCRCPY_OIDC_CLIENT_SECRET
+WS_SCRCPY_OIDC_REDIRECT_URI
+WS_SCRCPY_OIDC_SCOPES           # space or comma separated
+WS_SCRCPY_OIDC_REQUIRE_AUTH     # true/false
+WS_SCRCPY_OIDC_SESSION_SECRET
+WS_SCRCPY_OIDC_SESSION_TTL_SECONDS
+WS_SCRCPY_OIDC_COOKIE_SECURE    # true/false
+```
+
 ## Known issues
 
 * The server on the Android Emulator listens on the internal interface and not

@@ -5,13 +5,21 @@ export interface SessionCountChangedEvent {
     udid: string;
     displayId: number;
     count: number;
+    viewers: SessionViewer[];
+}
+
+export interface SessionViewer {
+    id: string;
+    displayName: string;
+    email?: string;
+    username?: string;
 }
 
 export class SessionTracker extends EventEmitter implements Service {
     private static instance?: SessionTracker;
 
-    // Map: udid -> displayId -> Set<clientId>
-    private sessions: Map<string, Map<number, Set<string>>> = new Map();
+    // Map: udid -> displayId -> Map<clientId, SessionViewer>
+    private sessions: Map<string, Map<number, Map<string, SessionViewer>>> = new Map();
     private clientIdCounter = 0;
 
     protected constructor() {
@@ -33,19 +41,20 @@ export class SessionTracker extends EventEmitter implements Service {
         return `client_${++this.clientIdCounter}_${Date.now()}`;
     }
 
-    public addSession(udid: string, displayId: number, clientId: string): void {
+    public addSession(udid: string, displayId: number, clientId: string, viewer?: SessionViewer): void {
         if (!this.sessions.has(udid)) {
             this.sessions.set(udid, new Map());
         }
         const deviceMap = this.sessions.get(udid)!;
         if (!deviceMap.has(displayId)) {
-            deviceMap.set(displayId, new Set());
+            deviceMap.set(displayId, new Map());
         }
         const clients = deviceMap.get(displayId)!;
-        clients.add(clientId);
+        clients.set(clientId, viewer || this.createAnonymousViewer(clientId));
 
         const count = clients.size;
-        this.emit('sessionCountChanged', { udid, displayId, count } as SessionCountChangedEvent);
+        const viewers = this.getSessionViewers(udid, displayId);
+        this.emit('sessionCountChanged', { udid, displayId, count, viewers } as SessionCountChangedEvent);
     }
 
     public removeSession(udid: string, displayId: number, clientId: string): void {
@@ -60,7 +69,8 @@ export class SessionTracker extends EventEmitter implements Service {
         clients.delete(clientId);
 
         const count = clients.size;
-        this.emit('sessionCountChanged', { udid, displayId, count } as SessionCountChangedEvent);
+        const viewers = this.getSessionViewers(udid, displayId);
+        this.emit('sessionCountChanged', { udid, displayId, count, viewers } as SessionCountChangedEvent);
 
         // Cleanup empty sets and maps
         if (clients.size === 0) {
@@ -81,6 +91,35 @@ export class SessionTracker extends EventEmitter implements Service {
             return 0;
         }
         return clients.size;
+    }
+
+    public getSessionViewers(udid: string, displayId: number): SessionViewer[] {
+        const deviceMap = this.sessions.get(udid);
+        if (!deviceMap) {
+            return [];
+        }
+        const clients = deviceMap.get(displayId);
+        if (!clients) {
+            return [];
+        }
+        const uniqueViewers = new Map<string, SessionViewer>();
+        for (const viewer of clients.values()) {
+            const viewerId = viewer.id || viewer.displayName || '';
+            if (!viewerId) {
+                continue;
+            }
+            if (!uniqueViewers.has(viewerId)) {
+                uniqueViewers.set(viewerId, viewer);
+            }
+        }
+        return Array.from(uniqueViewers.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    }
+
+    private createAnonymousViewer(clientId: string): SessionViewer {
+        return {
+            id: clientId,
+            displayName: 'Anonymous',
+        };
     }
 
     public getName(): string {

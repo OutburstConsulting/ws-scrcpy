@@ -12,6 +12,8 @@ import { WorkflowDatabase } from './WorkflowDatabase';
 import { WorkflowApi } from '../mw/WorkflowApi';
 import { ConnectionDatabase } from './ConnectionDatabase';
 import { ConnectionApi } from '../mw/ConnectionApi';
+import { AuthService } from './AuthService';
+import { AuthApi } from '../mw/AuthApi';
 
 const DEFAULT_STATIC_DIR = path.join(__dirname, './public');
 
@@ -83,6 +85,32 @@ export class HttpServer extends TypedEmitter<HttpServerEvents> implements Servic
 
         // Add JSON body parser for API routes
         this.mainApp.use(express.json());
+
+        const authService = AuthService.getInstance();
+        await authService.start();
+        if (authService.isEnabled()) {
+            const sessionMiddleware = authService.getSessionMiddleware();
+            if (sessionMiddleware) {
+                this.mainApp.use(sessionMiddleware);
+            }
+            const authApi = new AuthApi(authService);
+            this.mainApp.use('/auth', authApi.getRouter());
+
+            if (authService.isAuthRequired()) {
+                this.mainApp.use((req, res, next) => {
+                    if (req.path.startsWith('/auth')) {
+                        return next();
+                    }
+                    if (authService.isAuthenticated(req)) {
+                        return next();
+                    }
+                    if (req.path.startsWith('/api/')) {
+                        return res.status(401).json({ success: false, error: 'Unauthorized' });
+                    }
+                    return res.redirect('/auth/login');
+                });
+            }
+        }
 
         // Initialize WorkflowDatabase
         const workflowDb = WorkflowDatabase.getInstance();

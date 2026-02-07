@@ -5,6 +5,7 @@ export class ToolBoxSessionCounter extends ToolBoxElement<HTMLDivElement> {
     private readonly countElement: HTMLSpanElement;
     private readonly iconElement: SVGSVGElement;
     private currentCount = 0;
+    private currentViewers: string[] = [];
 
     constructor() {
         super('Session Count');
@@ -42,10 +43,14 @@ export class ToolBoxSessionCounter extends ToolBoxElement<HTMLDivElement> {
         return [this.element];
     }
 
-    public updateCount(count: number): void {
+    public updateCount(count: number, viewers?: string[]): void {
         const previousCount = this.currentCount;
         this.currentCount = count;
+        if (Array.isArray(viewers)) {
+            this.currentViewers = viewers;
+        }
         this.countElement.textContent = count.toString();
+        this.updateTitle();
 
         // Update highlight state based on count
         if (count > 1) {
@@ -67,5 +72,13 @@ export class ToolBoxSessionCounter extends ToolBoxElement<HTMLDivElement> {
         void this.iconElement.getBoundingClientRect();
         // Add the class to trigger animation
         this.iconElement.classList.add('session-counter-wobble');
+    }
+
+    private updateTitle(): void {
+        if (!this.currentViewers.length) {
+            this.element.title = 'Connected viewers';
+            return;
+        }
+        this.element.title = `Connected viewers: ${this.currentViewers.join(', ')}`;
     }
 }

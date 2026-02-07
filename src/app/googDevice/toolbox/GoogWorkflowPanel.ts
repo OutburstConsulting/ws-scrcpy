@@ -4,6 +4,9 @@ import { WorkflowPlayer, WorkflowPlayerListener, ActionFeedback } from '../../wo
 import { WorkflowStorage } from '../../workflow/WorkflowStorage';
 import { Workflow } from '../../workflow/WorkflowTypes';
 import { DraggablePanel } from '../../ui/DraggablePanel';
+import { LockStateInfo, LockRequestInfo } from '../../client/StreamReceiver';
+
+export type LockRequestCallback = (request: LockRequestInfo) => void;
 
 export class GoogWorkflowPanel {
     private readonly holder: HTMLElement;
@@ -19,6 +22,9 @@ export class GoogWorkflowPanel {
     private recorder: WorkflowRecorder;
     private player: WorkflowPlayer;
     private readonly deviceId: string;
+    private lockRequestCallback?: LockRequestCallback;
+    private pendingWorkflow: Workflow | null = null;
+    private hasWorkflowLock = false;
 
     constructor(udid: string, private basePlayer: BasePlayer, listener: WorkflowPlayerListener) {
         this.deviceId = udid;
@@ -154,7 +160,10 @@ export class GoogWorkflowPanel {
             this.statusBadge.removeAttribute('pulse');
             this.recordButton.removeAttribute('disabled');
             this.removeFeedbackOverlay();
+            // Release workflow lock when playback ends
+            this.releaseWorkflowLock();
             this.playingWorkflowId = null;
+            this.pendingWorkflow = null;
             this.refreshWorkflowList();
         }
     }
@@ -584,9 +593,27 @@ export class GoogWorkflowPanel {
     private playWorkflow(workflow: Workflow): void {
         if (this.recorder.isActive() || this.player.isActive()) return;
 
+        // Request workflow lock before starting playback
+        if (this.lockRequestCallback) {
+            this.pendingWorkflow = workflow;
+            this.lockRequestCallback({
+                type: 'lockRequest',
+                action: 'acquire',
+                lockType: 'workflow',
+                workflowId: workflow.id,
+                workflowName: workflow.name,
+            });
+        } else {
+            // No lock callback, play directly
+            this.startWorkflowPlayback(workflow);
+        }
+    }
+
+    private startWorkflowPlayback(workflow: Workflow): void {
         const screenInfo = this.basePlayer.getScreenInfo();
         if (screenInfo) {
             this.playingWorkflowId = workflow.id;
+            this.hasWorkflowLock = true;
             this.refreshWorkflowList();
             this.player.play(workflow, screenInfo.videoSize);
         }
@@ -594,6 +621,19 @@ export class GoogWorkflowPanel {
 
     private stopWorkflow(): void {
         this.player.stop();
+        this.releaseWorkflowLock();
+    }
+
+    private releaseWorkflowLock(): void {
+        if (this.hasWorkflowLock && this.playingWorkflowId && this.lockRequestCallback) {
+            this.lockRequestCallback({
+                type: 'lockRequest',
+                action: 'release',
+                lockType: 'workflow',
+                workflowId: this.playingWorkflowId,
+            });
+            this.hasWorkflowLock = false;
+        }
     }
 
     private exportWorkflow(workflow: Workflow): void {
@@ -687,5 +727,18 @@ export class GoogWorkflowPanel {
 
     public positionNear(element: HTMLElement): void {
         this.draggable.positionNear(element, 'left');
+    }
+
+    public setLockRequestCallback(callback: LockRequestCallback): void {
+        this.lockRequestCallback = callback;
+    }
+
+    public setLockState(info: LockStateInfo): void {
+        // If we have a pending workflow and we acquired the workflow lock, start playback
+        if (this.pendingWorkflow && info.lock && info.lock.type === 'workflow' && info.isLockHolder) {
+            const workflow = this.pendingWorkflow;
+            this.pendingWorkflow = null;
+            this.startWorkflowPlayback(workflow);
+        }
     }
 }

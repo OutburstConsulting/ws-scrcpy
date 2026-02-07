@@ -38,3 +38,35 @@ remoteHostList:
     secure: true
     hostname: third-mobile-stand.example.com
     port: 8443
+
+# Authentication (optional)
+# Use either OIDC or SAML - if both are configured, SAML takes priority.
+# You can also set fields via env vars (WS_SCRCPY_OIDC_* or WS_SCRCPY_SAML_*).
+auth:
+  # OIDC authentication
+  oidc:
+    issuerUrl: https://auth.example.com/application/o/ws-scrcpy/
+    clientId: ws-scrcpy
+    clientSecret: super-secret
+    redirectUri: https://first-mobile-stand.example.com/auth/callback
+    scopes:
+      - openid
+      - profile
+      - email
+    requireAuth: true
+    sessionSecret: replace-with-long-random-string
+    sessionTtlSeconds: 86400
+    cookieSecure: true
+  # SAML authentication (alternative to OIDC)
+  # saml:
+  #   entryPoint: https://idp.example.com/sso
+  #   issuer: ws-scrcpy
+  #   cert: |
+  #     -----BEGIN CERTIFICATE-----
+  #     MIIDpDCCAoygAwIBAgIGAX...
+  #     -----END CERTIFICATE-----
+  #   callbackUrl: https://first-mobile-stand.example.com/auth/saml/callback
+  #   requireAuth: true
+  #   sessionSecret: replace-with-long-random-string
+  #   sessionTtlSeconds: 86400
+  #   cookieSecure: true

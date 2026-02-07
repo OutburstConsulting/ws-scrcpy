@@ -37,6 +37,36 @@ export interface ServerItem {
         | boolean;
 }
 
+export interface OidcConfig {
+    issuerUrl: string;
+    clientId: string;
+    clientSecret?: string;
+    redirectUri: string;
+    scopes?: string[];
+    requireAuth?: boolean;
+    sessionSecret: string;
+    sessionTtlSeconds?: number;
+    cookieSecure?: boolean;
+}
+
+export interface SamlConfig {
+    entryPoint: string;
+    issuer: string; // SP entity ID (this application)
+    idpIssuer?: string; // IdP entity ID (e.g., https://authentik.example.com)
+    cert: string;
+    callbackUrl: string;
+    requireAuth?: boolean;
+    sessionSecret: string;
+    sessionTtlSeconds?: number;
+    cookieSecure?: boolean;
+    debug?: boolean; // Enable detailed SAML logging for troubleshooting
+}
+
+export interface AuthConfig {
+    oidc?: OidcConfig;
+    saml?: SamlConfig;
+}
+
 // The configuration file must contain a single object with this structure
 export interface Configuration {
     server?: ServerItem[];
@@ -45,4 +75,5 @@ export interface Configuration {
     runGoogTracker?: boolean;
     announceGoogTracker?: boolean;
     remoteHostList?: HostsItem[];
+    auth?: AuthConfig;
 }

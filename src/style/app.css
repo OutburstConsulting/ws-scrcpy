@@ -366,3 +366,62 @@ body.stream {
         opacity: 1;
     }
 }
+
+/* Screen Lock Overlay Styles */
+.screen-lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    border-radius: 16px 0 0 16px;
+}
+
+.screen-lock-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background-color: var(--panel-bg-color);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    max-width: 280px;
+}
+
+.screen-lock-icon {
+    font-size: 3rem;
+    color: var(--svg-button-fill);
+    margin-bottom: 1rem;
+}
+
+.screen-lock-status {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.screen-lock-holder {
+    font-size: 0.9rem;
+    color: var(--text-color-light);
+    margin-bottom: 1.5rem;
+}
+
+.screen-lock-force-unlock,
+.screen-lock-emergency-unlock {
+    margin-top: 0.5rem;
+}
+
+.screen-lock-force-unlock::part(base),
+.screen-lock-emergency-unlock::part(base) {
+    border: none;
+}

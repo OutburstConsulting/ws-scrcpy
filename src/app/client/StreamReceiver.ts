@@ -26,6 +26,37 @@ export type SessionCountInfo = {
     udid: string;
     displayId: number;
     count: number;
+    viewers?: SessionViewerInfo[];
+};
+
+export type SessionViewerInfo = {
+    id: string;
+    displayName: string;
+    email?: string;
+    username?: string;
+};
+
+export type LockType = 'user' | 'workflow';
+
+export type LockStateInfo = {
+    udid: string;
+    displayId: number;
+    lock: {
+        type: LockType;
+        lockHolderId: string;
+        lockHolderName: string;
+        ownerClientId?: string;
+        acquiredAt: number;
+    } | null;
+    isLockHolder: boolean;
+};
+
+export type LockRequestInfo = {
+    type: 'lockRequest';
+    action: 'acquire' | 'release' | 'forceUnlock' | 'emergencyUnlock';
+    lockType?: LockType;
+    workflowId?: string;
+    workflowName?: string;
 };
 
 interface StreamReceiverEvents {
@@ -37,6 +68,7 @@ interface StreamReceiverEvents {
     connected: void;
     disconnected: CloseEvent;
     sessionCount: SessionCountInfo;
+    lockState: LockStateInfo;
 }
 
 const TAG = '[StreamReceiver]';
@@ -154,7 +186,7 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
 
             this.emit('video', new Uint8Array(event.data));
         } else if (typeof event.data === 'string') {
-            // Handle JSON messages (e.g., session count updates)
+            // Handle JSON messages (e.g., session count updates, lock state)
             try {
                 const message = JSON.parse(event.data);
                 if (message.type === 'sessionCount') {
@@ -162,7 +194,15 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
                         udid: message.udid,
                         displayId: message.displayId,
                         count: message.count,
+                        viewers: Array.isArray(message.viewers) ? message.viewers : [],
                     } as SessionCountInfo);
+                } else if (message.type === 'lockState') {
+                    this.emit('lockState', {
+                        udid: message.udid,
+                        displayId: message.displayId,
+                        lock: message.lock,
+                        isLockHolder: message.isLockHolder,
+                    } as LockStateInfo);
                 }
             } catch (e) {
                 console.warn(`${TAG} Failed to parse JSON message:`, e);
@@ -224,5 +264,11 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
 
     public getDisplayInfo(displayId: number): DisplayInfo | undefined {
         return this.displayInfoMap.get(displayId);
+    }
+
+    public sendLockRequest(request: LockRequestInfo): void {
+        if (this.ws && this.ws.readyState === this.ws.OPEN) {
+            this.ws.send(JSON.stringify(request));
+        }
     }
 }

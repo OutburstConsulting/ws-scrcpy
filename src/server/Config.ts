@@ -1,7 +1,7 @@
 import * as process from 'process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Configuration, HostItem, ServerItem } from '../types/Configuration';
+import { AuthConfig, Configuration, HostItem, OidcConfig, SamlConfig, ServerItem } from '../types/Configuration';
 import { EnvName } from './EnvName';
 import YAML from 'yaml';
 
@@ -39,9 +39,162 @@ export class Config {
             announceApplTracker,
             server,
             remoteHostList: [],
+            auth: {},
         };
         const merged = Object.assign({}, defaultConfig, userConfig);
         merged.server = merged.server.map((item) => this.parseServerItem(item));
+        return merged;
+    }
+    private static parseBooleanEnv(value?: string): boolean | undefined {
+        if (typeof value === 'undefined') {
+            return undefined;
+        }
+        const normalized = value.trim().toLowerCase();
+        if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) {
+            return true;
+        }
+        if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) {
+            return false;
+        }
+        return undefined;
+    }
+    private static parseNumberEnv(value?: string): number | undefined {
+        if (typeof value === 'undefined') {
+            return undefined;
+        }
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+            return undefined;
+        }
+        return parsed;
+    }
+    private static parseScopesEnv(value?: string): string[] | undefined {
+        if (typeof value === 'undefined') {
+            return undefined;
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return undefined;
+        }
+        const parts = trimmed.includes(',') ? trimmed.split(',') : trimmed.split(/\s+/);
+        const scopes = parts.map((item) => item.trim()).filter(Boolean);
+        return scopes.length ? scopes : undefined;
+    }
+    private static readAuthFromEnv(): AuthConfig | undefined {
+        const oidcConfig: Partial<OidcConfig> = {};
+        const issuerUrl = process.env[EnvName.OIDC_ISSUER_URL];
+        const clientId = process.env[EnvName.OIDC_CLIENT_ID];
+        const clientSecret = process.env[EnvName.OIDC_CLIENT_SECRET];
+        const redirectUri = process.env[EnvName.OIDC_REDIRECT_URI];
+        const scopes = this.parseScopesEnv(process.env[EnvName.OIDC_SCOPES]);
+        const requireAuth = this.parseBooleanEnv(process.env[EnvName.OIDC_REQUIRE_AUTH]);
+        const sessionSecret = process.env[EnvName.OIDC_SESSION_SECRET];
+        const sessionTtlSeconds = this.parseNumberEnv(process.env[EnvName.OIDC_SESSION_TTL_SECONDS]);
+        const cookieSecure = this.parseBooleanEnv(process.env[EnvName.OIDC_COOKIE_SECURE]);
+
+        if (issuerUrl) {
+            oidcConfig.issuerUrl = issuerUrl;
+        }
+        if (clientId) {
+            oidcConfig.clientId = clientId;
+        }
+        if (clientSecret) {
+            oidcConfig.clientSecret = clientSecret;
+        }
+        if (redirectUri) {
+            oidcConfig.redirectUri = redirectUri;
+        }
+        if (scopes) {
+            oidcConfig.scopes = scopes;
+        }
+        if (typeof requireAuth !== 'undefined') {
+            oidcConfig.requireAuth = requireAuth;
+        }
+        if (sessionSecret) {
+            oidcConfig.sessionSecret = sessionSecret;
+        }
+        if (typeof sessionTtlSeconds !== 'undefined') {
+            oidcConfig.sessionTtlSeconds = sessionTtlSeconds;
+        }
+        if (typeof cookieSecure !== 'undefined') {
+            oidcConfig.cookieSecure = cookieSecure;
+        }
+
+        if (!Object.keys(oidcConfig).length) {
+            return undefined;
+        }
+
+        return { oidc: oidcConfig as OidcConfig };
+    }
+    private static readSamlFromEnv(): AuthConfig | undefined {
+        const samlConfig: Partial<SamlConfig> = {};
+        const entryPoint = process.env[EnvName.SAML_ENTRY_POINT];
+        const issuer = process.env[EnvName.SAML_ISSUER];
+        const idpIssuer = process.env[EnvName.SAML_IDP_ISSUER];
+        const cert = process.env[EnvName.SAML_CERT];
+        const callbackUrl = process.env[EnvName.SAML_CALLBACK_URL];
+        const requireAuth = this.parseBooleanEnv(process.env[EnvName.SAML_REQUIRE_AUTH]);
+        const sessionSecret = process.env[EnvName.SAML_SESSION_SECRET];
+        const sessionTtlSeconds = this.parseNumberEnv(process.env[EnvName.SAML_SESSION_TTL_SECONDS]);
+        const cookieSecure = this.parseBooleanEnv(process.env[EnvName.SAML_COOKIE_SECURE]);
+        const debug = this.parseBooleanEnv(process.env[EnvName.SAML_DEBUG]);
+
+        if (entryPoint) {
+            samlConfig.entryPoint = entryPoint;
+        }
+        if (issuer) {
+            samlConfig.issuer = issuer;
+        }
+        if (idpIssuer) {
+            samlConfig.idpIssuer = idpIssuer;
+        }
+        if (cert) {
+            samlConfig.cert = cert;
+        }
+        if (callbackUrl) {
+            samlConfig.callbackUrl = callbackUrl;
+        }
+        if (typeof requireAuth !== 'undefined') {
+            samlConfig.requireAuth = requireAuth;
+        }
+        if (sessionSecret) {
+            samlConfig.sessionSecret = sessionSecret;
+        }
+        if (typeof sessionTtlSeconds !== 'undefined') {
+            samlConfig.sessionTtlSeconds = sessionTtlSeconds;
+        }
+        if (typeof cookieSecure !== 'undefined') {
+            samlConfig.cookieSecure = cookieSecure;
+        }
+        if (typeof debug !== 'undefined') {
+            samlConfig.debug = debug;
+        }
+
+        if (!Object.keys(samlConfig).length) {
+            return undefined;
+        }
+
+        return { saml: samlConfig as SamlConfig };
+    }
+    private static mergeAuthConfig(base: AuthConfig, ...overrides: (AuthConfig | undefined)[]): AuthConfig {
+        const merged: AuthConfig = { ...base };
+        for (const override of overrides) {
+            if (!override) {
+                continue;
+            }
+            if (override.oidc) {
+                merged.oidc = {
+                    ...(merged.oidc || {}),
+                    ...override.oidc,
+                } as OidcConfig;
+            }
+            if (override.saml) {
+                merged.saml = {
+                    ...(merged.saml || {}),
+                    ...override.saml,
+                } as SamlConfig;
+            }
+        }
         return merged;
     }
     private static parseServerItem(config: Partial<ServerItem> = {}): ServerItem {
@@ -93,6 +246,7 @@ export class Config {
                 }
             }
             const fullConfig = this.initConfig(userConfig);
+            fullConfig.auth = this.mergeAuthConfig(fullConfig.auth, this.readAuthFromEnv(), this.readSamlFromEnv());
             this.instance = new Config(fullConfig);
         }
         return this.instance;
@@ -152,5 +306,9 @@ export class Config {
 
     public get servers(): ServerItem[] {
         return this.fullConfig.server;
+    }
+
+    public get auth(): AuthConfig | undefined {
+        return this.fullConfig.auth;
     }
 }

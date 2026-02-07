@@ -5,10 +5,11 @@ FROM node:24-alpine AS builder
 
 WORKDIR /ws-scrcpy
 
-# Install build dependencies
+# Install build dependencies (including Java for samlify-xsd-schema-validator)
 RUN apk add --no-cache \
     build-base \
-    python3
+    python3 \
+    openjdk17-jdk
 
 # Install node-gyp globally
 RUN npm install -g node-gyp
@@ -41,8 +42,8 @@ ENV NODE_ENV=production
 
 WORKDIR /ws-scrcpy
 
-# Install only runtime dependencies (ADB for device communication)
-RUN apk add --no-cache android-tools
+# Install runtime dependencies (ADB + Java for SAML validation)
+RUN apk add --no-cache android-tools openjdk17-jre-headless
 
 # Copy built artifacts from builder
 COPY --from=builder /ws-scrcpy/dist ./dist

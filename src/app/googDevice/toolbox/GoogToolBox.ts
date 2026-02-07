@@ -55,9 +55,9 @@ export class GoogToolBox extends ToolBox {
         this.sessionCounter = sessionCounter;
     }
 
-    public updateSessionCount(count: number): void {
+    public updateSessionCount(count: number, viewers?: string[]): void {
         if (this.sessionCounter) {
-            this.sessionCounter.updateCount(count);
+            this.sessionCounter.updateCount(count, viewers);
         }
     }
 

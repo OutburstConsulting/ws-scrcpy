@@ -79,9 +79,7 @@ export class WorkflowDatabase implements Service {
             )
         `);
 
-        const columns = this.db
-            .prepare(`PRAGMA table_info('workflows')`)
-            .all() as Array<{ name: string }>;
+        const columns = this.db.prepare(`PRAGMA table_info('workflows')`).all() as Array<{ name: string }>;
         const hasDeviceId = columns.some((column) => column.name === 'device_id');
         if (!hasDeviceId) {
             this.db.exec(`ALTER TABLE workflows ADD COLUMN device_id TEXT NOT NULL DEFAULT ''`);

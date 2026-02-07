@@ -6,7 +6,13 @@ import { GoogWorkflowPanel } from '../toolbox/GoogWorkflowPanel';
 import VideoSettings from '../../VideoSettings';
 import Size from '../../Size';
 import { ControlMessage } from '../../controlMessage/ControlMessage';
-import { ClientsStats, DisplayCombinedInfo, SessionCountInfo } from '../../client/StreamReceiver';
+import {
+    ClientsStats,
+    DisplayCombinedInfo,
+    SessionCountInfo,
+    LockStateInfo,
+    LockRequestInfo,
+} from '../../client/StreamReceiver';
 import { CommandControlMessage } from '../../controlMessage/CommandControlMessage';
 import Util from '../../Util';
 import FilePushHandler from '../filePush/FilePushHandler';
@@ -31,6 +37,7 @@ import { ACTION } from '../../../common/Action';
 import { StreamReceiverScrcpy } from './StreamReceiverScrcpy';
 import { ParamsDeviceTracker } from '../../../types/ParamsDeviceTracker';
 import { ScrcpyFilePushStream } from '../filePush/ScrcpyFilePushStream';
+import { ScreenLockOverlay } from '../../ui/ScreenLockOverlay';
 
 type StartParams = {
     udid: string;
@@ -63,6 +70,8 @@ export class StreamClientScrcpy
     private filePushHandler?: FilePushHandler;
     private fitToScreen?: boolean;
     private readonly streamReceiver: StreamReceiverScrcpy;
+    private lockOverlay?: ScreenLockOverlay;
+    private currentLockState?: LockStateInfo;
 
     public static registerPlayer(playerClass: PlayerClass): void {
         if (playerClass.isSupported()) {
@@ -192,7 +201,34 @@ export class StreamClientScrcpy
     public onSessionCount = (info: SessionCountInfo): void => {
         this.clientsCount = info.count;
         if (this.toolBox) {
-            this.toolBox.updateSessionCount(info.count);
+            const viewers = info.viewers?.map((viewer) => viewer.displayName) || [];
+            this.toolBox.updateSessionCount(info.count, viewers);
+        }
+    };
+
+    public onLockState = (info: LockStateInfo): void => {
+        this.currentLockState = info;
+
+        if (this.lockOverlay) {
+            if (!info.lock) {
+                // No lock - hide overlay
+                this.lockOverlay.hide();
+            } else if (info.lock.type === 'workflow') {
+                // Workflow lock - show overlay for everyone (including lock holder)
+                // to prevent accidental interaction during workflow playback
+                this.lockOverlay.show(info);
+            } else if (info.isLockHolder) {
+                // User lock and we're the holder - hide overlay
+                this.lockOverlay.hide();
+            } else {
+                // User lock and we're not the holder - show overlay
+                this.lockOverlay.show(info);
+            }
+        }
+
+        // Notify workflow panel of lock state
+        if (this.workflowPanel) {
+            this.workflowPanel.setLockState(info);
         }
     };
 
@@ -264,12 +300,15 @@ export class StreamClientScrcpy
         this.streamReceiver.off('clientsStats', this.onClientsStats);
         this.streamReceiver.off('displayInfo', this.onDisplayInfo);
         this.streamReceiver.off('sessionCount', this.onSessionCount);
+        this.streamReceiver.off('lockState', this.onLockState);
         this.streamReceiver.off('disconnected', this.onDisconnected);
 
         this.filePushHandler?.release();
         this.filePushHandler = undefined;
         this.touchHandler?.release();
         this.touchHandler = undefined;
+        this.lockOverlay?.destroy();
+        this.lockOverlay = undefined;
     };
 
     public startStream({ udid, player, playerName, videoSettings, fitToScreen }: StartParams): void {
@@ -316,8 +355,7 @@ export class StreamClientScrcpy
             if (ev && ev instanceof Event && ev.type === 'error') {
                 console.error(TAG, ev);
             }
-            let parent;
-            parent = streamWrapper.parentElement;
+            const parent = streamWrapper.parentElement;
             if (parent) {
                 parent.removeChild(streamWrapper);
             }
@@ -333,6 +371,7 @@ export class StreamClientScrcpy
 
         // Create workflow panel
         const googWorkflowPanel = (this.workflowPanel = new GoogWorkflowPanel(udid, player, this));
+        googWorkflowPanel.setLockRequestCallback((request) => this.sendLockRequest(request));
         const workflowBox = googWorkflowPanel.getHolderElement();
         workflowBox.style.display = 'none'; // Hidden by default
 
@@ -363,6 +402,11 @@ export class StreamClientScrcpy
         player.setParent(video);
         player.pause();
 
+        // Create screen lock overlay inside the video container
+        this.lockOverlay = new ScreenLockOverlay(video);
+        this.lockOverlay.setForceUnlockCallback(() => this.forceUnlock());
+        this.lockOverlay.setEmergencyUnlockCallback(() => this.emergencyUnlock());
+
         streamWrapper.appendChild(streamContainer);
         // Add moreBox and workflowBox to the wrapper so they can float freely
         streamWrapper.appendChild(moreBox);
@@ -386,6 +430,7 @@ export class StreamClientScrcpy
         streamReceiver.on('clientsStats', this.onClientsStats);
         streamReceiver.on('displayInfo', this.onDisplayInfo);
         streamReceiver.on('sessionCount', this.onSessionCount);
+        streamReceiver.on('lockState', this.onLockState);
         streamReceiver.on('disconnected', this.onDisconnected);
         console.log(TAG, player.getName(), udid);
     }
@@ -435,6 +480,28 @@ export class StreamClientScrcpy
         const width = (body.clientWidth - this.controlButtons.clientWidth) & ~15;
         const height = body.clientHeight & ~15;
         return new Size(width, height);
+    }
+
+    public sendLockRequest(request: LockRequestInfo): void {
+        this.streamReceiver.sendLockRequest(request);
+    }
+
+    public forceUnlock(): void {
+        this.sendLockRequest({
+            type: 'lockRequest',
+            action: 'forceUnlock',
+        });
+    }
+
+    public emergencyUnlock(): void {
+        this.sendLockRequest({
+            type: 'lockRequest',
+            action: 'emergencyUnlock',
+        });
+    }
+
+    public getCurrentLockState(): LockStateInfo | undefined {
+        return this.currentLockState;
     }
 
     private setTouchListeners(player: BasePlayer): void {

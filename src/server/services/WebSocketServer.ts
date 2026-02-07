@@ -3,6 +3,7 @@ import WS from 'ws';
 import { Service } from './Service';
 import { HttpServer, ServerAndPort } from './HttpServer';
 import { MwFactory } from '../mw/Mw';
+import { AuthService } from './AuthService';
 
 export class WebSocketServer implements Service {
     private static instance?: WebSocketServer;
@@ -37,11 +38,17 @@ export class WebSocketServer implements Service {
                 ws.close(4001, `[${TAG}] Invalid url`);
                 return;
             }
+            const authService = AuthService.getInstance();
+            const user = await authService.getUserFromRequest(request);
+            if (authService.isAuthRequired() && !user) {
+                ws.close(4004, `[${TAG}] Unauthorized`);
+                return;
+            }
             const url = new URL(request.url, 'https://example.org/');
             const action = url.searchParams.get('action') || '';
             let processed = false;
             for (const mwFactory of this.mwFactories.values()) {
-                const service = mwFactory.processRequest(ws, { action, request, url });
+                const service = mwFactory.processRequest(ws, { action, request, url, user });
                 if (service) {
                     processed = true;
                 }
